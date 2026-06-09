@@ -1,122 +1,96 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect } from 'react';
+import { useRulesState } from './hooks/useRulesReducer';
+import { rulesApi } from './services/apiClient';
 
-function App() {
-  const [count, setCount] = useState(0)
+import Sidebar from './components/Sidebar';
+import RulesEditorPane from './components/RulesEditorPane';
+import FactsEditorPane from './components/FactsEditorPane';
+import ResultsViewerPane from './components/ResultsViewerPane';
+import AssertionTable from './components/AssertionTable';
+
+export default function App() {
+  const { state, dispatch } = useRulesState();
+
+  const handleDryRun = async () => {
+    // Send raw JSON strings to the backend (or fallback simulation)
+    const result = await rulesApi.dryRun(
+      state.currentRules,
+      state.currentFacts,
+      JSON.stringify(state.settings)
+    );
+    dispatch({ type: 'SET_TEST_RESULT', payload: result });
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="flex h-screen w-full bg-slate-950 text-slate-200 overflow-hidden font-sans">
+      {/* Left Sidebar */}
+      <Sidebar state={state} dispatch={dispatch} onDryRun={handleDryRun} />
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {/* Main Content Area */}
+      <div className="flex flex-col flex-1 min-w-0">
+        
+        {/* Top Header/Toolbar */}
+        <div className="h-14 border-b border-slate-800 bg-slate-950 flex items-center px-6 justify-between shrink-0">
+          <div>
+            <h1 className="text-lg font-bold text-slate-100 tracking-tight">Phase 1.0 JSON-First Editor</h1>
+            <p className="text-xs text-slate-400">RulesEngine Evaluation Service</p>
+          </div>
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500">Validation Mode:</span>
+              <select 
+                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 outline-none focus:border-lime-500"
+                value={state.settings.ValidationMode}
+                onChange={(e) => dispatch({ type: 'SET_SETTINGS', payload: { ValidationMode: e.target.value }})}
+              >
+                <option value="Default">Default</option>
+                <option value="ThrowOnFirstError">Throw On First Error</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={state.settings.EnableScopedParams}
+                  onChange={(e) => dispatch({ type: 'SET_SETTINGS', payload: { EnableScopedParams: e.target.checked }})}
+                  className="accent-lime-500"
+                />
+                <span className="text-slate-400">Scoped Params</span>
+              </label>
+            </div>
+          </div>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        {/* Three Pane Layout */}
+        <div className="flex-1 flex min-h-0">
+          <div className="w-1/3 min-w-[300px]">
+            <RulesEditorPane 
+              value={state.currentRules} 
+              onChange={(val) => dispatch({ type: 'SET_RULES', payload: val })} 
+            />
+          </div>
+          <div className="w-1/3 min-w-[300px]">
+            <FactsEditorPane 
+              value={state.currentFacts} 
+              onChange={(val) => dispatch({ type: 'SET_FACTS', payload: val })} 
+            />
+          </div>
+          <div className="w-1/3 min-w-[300px]">
+            <ResultsViewerPane 
+              testResult={state.testResult} 
+              isMockMode={state.isMockMode}
+            />
+          </div>
+        </div>
+
+        {/* Bottom Assertion Table */}
+        <AssertionTable 
+          assertions={state.assertions} 
+          testResult={state.testResult} 
+          dispatch={dispatch} 
+        />
+
+      </div>
+    </div>
+  );
 }
-
-export default App
