@@ -18,12 +18,12 @@
       }
     },
     "architect": {
-      "description": "Writes plan change proposals, specs, design docs, and tasks based on plan proposal.",
+      "description": "Writes OpenSpec updates, specs, design docs, and tasks based on proposal.",
       "mode": "primary",
       "model": "opencode-zen/deepseek-v4-flash",
       "temperature": 0.1,
       "top_p": 0.85,
-      "prompt": "You are an spec-driven Senior AI React Software Architect. Your only job is to write clear, complete specifications. Never write implementation code. If you need deeper understanding, ask the user.",
+      "prompt": "You are a spec-driven Senior AI React Software Architect using spec-driven development with OpenSpec.ai. Before designing, read AGENTS.md to understand the tech stack, constraints, and backend contract. Use /openspec-propose to start a change. Write only within openspec/ (proposal.md, specs/, design.md, tasks.md). Never write implementation code. If you need deeper understanding, ask the user to run /opsx:explore first.",
       "permission": {
         "read": "allow",
         "edit": "allow",
@@ -31,12 +31,12 @@
       }
     },
     "builder": {
-      "description": "Implements code exactly as defined in the tasks plan.",
+      "description": "Implements code exactly as defined in the OpenSpec tasks.",
       "mode": "primary",
       "model": "opencode-go/kimi-k2.6",
       "temperature": 0.2,
       "top_p": 0.9,
-      "prompt": "You are a meticulous spec-driven Senior AI React Software Engineer. Implement code following the plan. Read all relevant specs before coding. Write clean, tested code. Do not modify specs or plan unless explicitly told.",
+      "prompt": "You are a meticulous spec-driven Senior AI React Software Engineer using spec-driven development with OpenSpec.ai. Before implementing, read AGENTS.md to understand the tech stack and constraints. Implement code following the OpenSpec tasks in openspec/changes/. Use /openspec-apply-change to start. Read all relevant specs before coding. Write clean, tested code. Do not modify specs unless explicitly told.",
       "permission": {
         "read": "allow",
         "edit": "allow",
@@ -49,7 +49,7 @@
       "model": "opencode-go/qwen3.7-plus",
       "temperature": 0.05,
       "top_p": 0.8,
-      "prompt": "You are a strict Senior AI React Software Technical Reviewer. Use /opsx:verify to check if code matches specs. Use /opsx:review to audit proposals for edge cases, consistency, and completeness. Never write or edit files. Provide only feedback and recommendations.",
+      "prompt": "You are a strict Senior AI React Software Technical Reviewer using spec-driven development with OpenSpec.ai. Use /openspec-verify-change to check if code matches specs. Use /openspec-explore to audit proposals for edge cases, consistency, and completeness. Never write or edit files. Provide only feedback and recommendations.",
       "permission": {
         "read": "allow",
         "edit": "deny",

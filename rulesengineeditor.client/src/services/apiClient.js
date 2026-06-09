@@ -1,6 +1,9 @@
 import axios from 'axios';
 
 // The base client, relative URL. Proxied by Vite config if backend is available.
+// Real backend: https://localhost:7119/api/
+// OpenAPI spec: Api/v1.yaml (in project root) or https://localhost:7119/scalar/
+// Auth (Passkey/FIDO2) is not yet implemented — scheduled as future proposal.
 const client = axios.create({
   baseURL: '/',
   headers: {
