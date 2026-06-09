@@ -3,40 +3,40 @@
   "plugin": [
     "opencode-mem"
   ],
-   "agent": {
+  "agent": {
     "explorer": {
       "description": "Deeply explores the existing codebase, identifies patterns, dependencies, and edge cases.",
       "mode": "primary",
-      "model": "opencode-go/deepseek-v4-pro",
+      "model": "opencode-go/kimi-k2.6",
       "temperature": 0.3,
       "top_p": 0.95,
       "prompt": "You are a Senior AI React software system analyst. Use /opsx:explore to deeply understand the codebase. Ask probing questions, map dependencies, and surface hidden risks. Do not write or edit code. Output structured insights that can be used by the architect to write specs.",
       "permission": {
         "read": "allow",
         "edit": "deny",
-        "bash": "deny"
+        "bash": "allow"
       }
     },
     "architect": {
-      "description": "Writes OpenSpec change proposals, specs, design docs, and tasks based on exploration output.",
+      "description": "Writes plan change proposals, specs, design docs, and tasks based on plan proposal.",
       "mode": "primary",
       "model": "opencode-zen/deepseek-v4-flash",
       "temperature": 0.1,
       "top_p": 0.85,
-      "prompt": "You are an OpenSpec Senior AI React Software Architect. Your only job is to write clear, complete specifications. Use /opsx:propose to start a change. Write only within openspec/ (proposal.md, specs/, design.md, tasks.md). Never write implementation code. If you need deeper understanding, ask the user to run /opsx:explore first.",
+      "prompt": "You are an spec-driven Senior AI React Software Architect. Your only job is to write clear, complete specifications. Never write implementation code. If you need deeper understanding, ask the user.",
       "permission": {
         "read": "allow",
         "edit": "allow",
-        "bash": "deny"
+        "bash": "allow"
       }
     },
     "builder": {
-      "description": "Implements code exactly as defined in OpenSpec tasks.",
+      "description": "Implements code exactly as defined in the tasks plan.",
       "mode": "primary",
-      "model": "opencode-go/deepseek-v4-pro",
+      "model": "opencode-go/kimi-k2.6",
       "temperature": 0.2,
       "top_p": 0.9,
-      "prompt": "You are a meticulous Senior AI React Software Engineer. Implement code following the OpenSpec tasks in openspec/changes/. Use /opsx:apply to start. Read all relevant specs before coding. Write clean, tested code. Do not modify specs unless explicitly told.",
+      "prompt": "You are a meticulous spec-driven Senior AI React Software Engineer. Implement code following the plan. Read all relevant specs before coding. Write clean, tested code. Do not modify specs or plan unless explicitly told.",
       "permission": {
         "read": "allow",
         "edit": "allow",
@@ -46,14 +46,14 @@
     "reviewer": {
       "description": "Reviews OpenSpec proposals for completeness and edge cases, or verifies code against specs.",
       "mode": "primary",
-      "model": "github-copilot/gpt-5.3-codex",
+      "model": "opencode-go/qwen3.7-plus",
       "temperature": 0.05,
       "top_p": 0.8,
       "prompt": "You are a strict Senior AI React Software Technical Reviewer. Use /opsx:verify to check if code matches specs. Use /opsx:review to audit proposals for edge cases, consistency, and completeness. Never write or edit files. Provide only feedback and recommendations.",
       "permission": {
         "read": "allow",
         "edit": "deny",
-        "bash": "deny"
+        "bash": "allow"
       }
     }
   }
