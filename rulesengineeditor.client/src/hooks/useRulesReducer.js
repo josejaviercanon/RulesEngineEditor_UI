@@ -8,12 +8,7 @@ const initialState = {
   ],
   testResult: null,
   isMockMode: false,
-  settings: {
-    ValidationMode: "Default",
-    EnableScopedParams: true,
-    CustomTypes: [],
-    NestedRuleExecutionMode: "All"
-  },
+  currentSettings: '{\n  "ValidationMode": "Default",\n  "EnableScopedParams": true,\n  "NestedRuleExecutionMode": "All",\n  "CustomTypes": []\n}',
   activeScenario: null
 };
 
@@ -36,8 +31,14 @@ function rulesReducer(state, action) {
           a.id === action.payload.id ? { ...a, ...action.payload.updates } : a
         )
       };
-    case 'SET_SETTINGS':
-      return { ...state, settings: { ...state.settings, ...action.payload } };
+    case 'SET_SETTINGS_JSON':
+      return { ...state, currentSettings: action.payload };
+    case 'SET_SETTINGS': {
+      let current = {};
+      try { current = JSON.parse(state.currentSettings); } catch(e) {}
+      current = { ...current, ...action.payload };
+      return { ...state, currentSettings: JSON.stringify(current, null, 2) };
+    }
     case 'SET_ACTIVE_SCENARIO':
       return { ...state, activeScenario: action.payload };
     default:

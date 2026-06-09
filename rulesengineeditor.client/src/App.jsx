@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useMemo } from 'react';
 import { useRulesState } from './hooks/useRulesReducer';
 import { rulesApi } from './services/apiClient';
 
@@ -11,12 +11,16 @@ import AssertionTable from './components/AssertionTable';
 export default function App() {
   const { state, dispatch } = useRulesState();
 
+  const parsedSettings = useMemo(() => {
+    try { return JSON.parse(state.currentSettings); } catch { return {}; }
+  }, [state.currentSettings]);
+
   const handleDryRun = async () => {
     // Send raw JSON strings to the backend (or fallback simulation)
     const result = await rulesApi.dryRun(
       state.currentRules,
       state.currentFacts,
-      JSON.stringify(state.settings)
+      state.currentSettings
     );
     dispatch({ type: 'SET_TEST_RESULT', payload: result });
   };
@@ -40,7 +44,7 @@ export default function App() {
               <span className="text-slate-500">Validation Mode:</span>
               <select 
                 className="bg-slate-900 border border-slate-700 rounded px-2 py-1 outline-none focus:border-lime-500"
-                value={state.settings.ValidationMode}
+                value={parsedSettings.ValidationMode || 'Default'}
                 onChange={(e) => dispatch({ type: 'SET_SETTINGS', payload: { ValidationMode: e.target.value }})}
               >
                 <option value="Default">Default</option>
@@ -51,7 +55,7 @@ export default function App() {
               <label className="flex items-center gap-2 cursor-pointer">
                 <input 
                   type="checkbox" 
-                  checked={state.settings.EnableScopedParams}
+                  checked={parsedSettings.EnableScopedParams ?? true}
                   onChange={(e) => dispatch({ type: 'SET_SETTINGS', payload: { EnableScopedParams: e.target.checked }})}
                   className="accent-lime-500"
                 />
@@ -72,7 +76,9 @@ export default function App() {
           <div className="w-1/3 min-w-[300px]">
             <FactsEditorPane 
               value={state.currentFacts} 
-              onChange={(val) => dispatch({ type: 'SET_FACTS', payload: val })} 
+              onChange={(val) => dispatch({ type: 'SET_FACTS', payload: val })}
+              currentSettings={state.currentSettings}
+              onSettingsChange={(val) => dispatch({ type: 'SET_SETTINGS_JSON', payload: val })}
             />
           </div>
           <div className="w-1/3 min-w-[300px]">
