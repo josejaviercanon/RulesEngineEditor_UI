@@ -11,9 +11,11 @@
 ### 2. API Call Failures
 - **Symptom**: Dry-run returns no results or "Sandbox Mode" badge appears immediately.
 - **Fix**: 
-  - Verify backend is running on `https://localhost:7119`
+  - Verify the backend is running on one of the profiles:
+    - **HTTP profile**: `http://localhost:5064` (run with `http` launch profile)
+    - **HTTPS profile**: `https://localhost:7119` (run with `https` launch profile)
   - Check OpenAPI docs at `https://localhost:7119/scalar/` for endpoint availability
-  - Verify `vite.config.js` proxy settings (proxies `/rules` and `/scenarios` to `http://localhost:5000`)
+  - Verify `vite.config.js` proxy settings (proxies to `http://localhost:5064` — matches the HTTP profile)
   - Check browser console for CORS or network errors
   - If backend is unreachable, app falls back to localStorage mock data and naive simulation
 

@@ -45,6 +45,13 @@ paths:
       responses:
         "200":
           description: OK
+  /api/auth/logout:
+    post:
+      tags:
+        - RulesEngineEditor.Server
+      responses:
+        "200":
+          description: OK
   /:
     get:
       tags:

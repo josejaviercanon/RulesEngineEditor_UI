@@ -120,7 +120,7 @@ rulesengineeditor.client/
   - `GET /api/Rules` → List workflow summaries
   - `POST /api/Rules/dry-run` → Dry-run evaluation
   - `POST /api/Rules/scenarios` → Save test scenario
-- **Vite Proxy**: Dev server proxies `/rules` and `/scenarios` to `http://localhost:5000` for local development convenience
+- **Vite Proxy**: Dev server proxies requests to the backend HTTP profile at `http://localhost:5064` for local development convenience. Proxied paths include `/rules`, `/scenarios`, `/login`, `/register`, `/refresh`, `/manage`, `/api/passkey`.
 
 ### Schema Compliance
 - JSON export validated against RulesEngine schema before sending

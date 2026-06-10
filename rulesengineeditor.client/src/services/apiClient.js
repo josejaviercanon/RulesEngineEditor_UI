@@ -1,15 +1,81 @@
 import axios from 'axios';
+import { getAccessToken, refreshToken, clearTokens } from './authClient';
 
 // The base client, relative URL. Proxied by Vite config if backend is available.
 // Real backend: https://localhost:7119/api/
 // OpenAPI spec: Api/v1.yaml (in project root) or https://localhost:7119/scalar/
-// Auth (Passkey/FIDO2) is not yet implemented — scheduled as future proposal.
 const client = axios.create({
   baseURL: '/',
   headers: {
     'Content-Type': 'application/json'
   }
 });
+
+// Request interceptor: attach Bearer token
+client.interceptors.request.use(
+  (config) => {
+    const token = getAccessToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor: handle 401 and attempt token refresh
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+function onRefreshed(newToken) {
+  refreshSubscribers.forEach((callback) => callback(newToken));
+  refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(callback) {
+  refreshSubscribers.push(callback);
+}
+
+client.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If 401 and not already retrying
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // Wait for refresh to complete
+        return new Promise((resolve) => {
+          addRefreshSubscriber((newToken) => {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            resolve(client(originalRequest));
+          });
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const result = await refreshToken();
+        const newToken = result.accessToken;
+        isRefreshing = false;
+        onRefreshed(newToken);
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return client(originalRequest);
+      } catch (refreshError) {
+        isRefreshing = false;
+        refreshSubscribers = [];
+        clearTokens();
+        // Redirect to login
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 // Mock simulation of RuleResultTree structure based on Microsoft.RulesEngine
 const simulateEvaluation = (rulesStr, factsStr, settingsStr) => {

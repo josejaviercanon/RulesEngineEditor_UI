@@ -31,8 +31,10 @@ npm run preview # vite preview
 ## Dev Server & Backend
 
 - Vite config hardcodes `port: 65426`.
-- Proxies `/rules` and `/scenarios` to `http://localhost:5000` for local dev convenience.
-- **Real backend URL**: `https://localhost:7119/api/`
+- Proxies API calls to the backend HTTP profile at `http://localhost:5064` for local dev convenience. Currently proxied paths: `/rules`, `/scenarios`, `/login`, `/register`, `/refresh`, `/manage`, `/api/passkey`.
+- **Backend HTTP profile** (no SSL): `http://localhost:5064` — use `launchSettings.json` `http` profile
+- **Backend HTTPS profile** (SSL): `https://localhost:7119` — use `launchSettings.json` `https` profile
+- **Real backend API base URL**: `https://localhost:7119/api/`
 - **OpenAPI Documentation**: `https://localhost:7119/scalar/` (Scalar UI for API exploration)
 - **Backend OpenAPI Spec**: `Api/v1.yaml` in the client project
 - If the backend is unreachable, the app falls back to **localStorage mock data** and a **local simulation** for dry-run evaluation (see `src/services/apiClient.js`).

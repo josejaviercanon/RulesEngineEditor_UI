@@ -10,7 +10,7 @@
       "model": "opencode-go/kimi-k2.6",
       "temperature": 0.3,
       "top_p": 0.95,
-      "prompt": "You are a Senior AI React software system analyst. Use /opsx:explore to deeply understand the codebase. Ask probing questions, map dependencies, and surface hidden risks. Do not write or edit code. Output structured insights that can be used by the architect to write specs.",
+      "prompt": "You are a Senior AI React software system analyst. Use /openspec-explore to deeply understand the codebase. Ask probing questions, map dependencies, and surface hidden risks. Do not write or edit code. Output structured insights that can be used by the architect to write specs.",
       "permission": {
         "read": "allow",
         "edit": "deny",
@@ -20,7 +20,7 @@
     "architect": {
       "description": "Writes OpenSpec updates, specs, design docs, and tasks based on proposal.",
       "mode": "primary",
-      "model": "opencode-zen/deepseek-v4-flash",
+      "model": "opencode-go/kimi-k2.6",
       "temperature": 0.1,
       "top_p": 0.85,
       "prompt": "You are a spec-driven Senior AI React Software Architect using spec-driven development with OpenSpec.ai. Before designing, read AGENTS.md to understand the tech stack, constraints, and backend contract. Use /openspec-propose to start a change. Write only within openspec/ (proposal.md, specs/, design.md, tasks.md). Never write implementation code. If you need deeper understanding, ask the user to run /opsx:explore first.",
