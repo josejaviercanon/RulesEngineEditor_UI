@@ -28,7 +28,8 @@ function EditorLayout() {
     const result = await rulesApi.dryRun(
       state.currentRules,
       state.currentFacts,
-      state.currentSettings
+      state.currentSettings,
+      state.onlineMode
     );
     dispatch({ type: 'SET_TEST_RESULT', payload: result });
   };
@@ -151,6 +152,7 @@ function EditorLayout() {
             <ResultsViewerPane 
               testResult={state.testResult} 
               isMockMode={state.isMockMode}
+              onlineMode={state.onlineMode}
             />
           </div>
         </div>

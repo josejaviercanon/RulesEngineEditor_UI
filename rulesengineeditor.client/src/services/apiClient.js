@@ -78,22 +78,22 @@ client.interceptors.response.use(
 );
 
 // Mock simulation of RuleResultTree structure based on Microsoft.RulesEngine
-const simulateEvaluation = (rulesStr, factsStr, settingsStr) => {
+const simulateEvaluation = (rulesStr, factsStr) => {
   return new Promise((resolve) => {
     setTimeout(() => {
       console.warn("API Unreachable. Running simulated RulesEngine local evaluation.");
-      let rules = [];
+      let rules;
       try {
         rules = JSON.parse(rulesStr);
         if (!Array.isArray(rules)) rules = [rules];
-      } catch (e) {
+      } catch {
         return resolve({ error: "Invalid Rules JSON" });
       }
 
       let facts = {};
       try {
         facts = JSON.parse(factsStr);
-      } catch (e) {
+      } catch {
         return resolve({ error: "Invalid Facts JSON" });
       }
 
@@ -115,18 +115,33 @@ const simulateEvaluation = (rulesStr, factsStr, settingsStr) => {
 };
 
 export const rulesApi = {
-  dryRun: async (rulesJson, factsJson, settingsJson) => {
+  dryRun: async (rulesJson, factsJson, settingsJson, useBackend = false) => {
+    // Parse settings to extract customTypes if present
+    let customTypes = null;
     try {
-      // Expecting { rulesJson, factsJson, settingsJson } as string properties
-      const response = await client.post('rules/dry-run', {
-        rulesJson,
-        factsJson,
-        settingsJson
-      });
-      return { isMock: false, data: response.data };
-    } catch (error) {
-      console.error("API /rules/dry-run failed:", error);
-      // Fallback to local simulation
+      const settings = JSON.parse(settingsJson || '{}');
+      if (settings.CustomTypes && Array.isArray(settings.CustomTypes) && settings.CustomTypes.length > 0) {
+        customTypes = settings.CustomTypes;
+      }
+    } catch { 
+      // ignore parse errors
+    }
+
+    if (useBackend) {
+      try {
+        const payload = { rulesJson, factsJson, settingsJson };
+        if (customTypes) {
+          payload.customTypes = customTypes;
+        }
+        const response = await client.post('rules/dry-run', payload);
+        return { isMock: false, data: response.data };
+      } catch (error) {
+        console.error("API /rules/dry-run failed:", error);
+        // Fallback to local simulation
+        return await simulateEvaluation(rulesJson, factsJson, settingsJson);
+      }
+    } else {
+      // Sandbox mode: always use local simulation
       return await simulateEvaluation(rulesJson, factsJson, settingsJson);
     }
   },
@@ -137,9 +152,20 @@ export const rulesApi = {
       return { isMock: false, data: response.data };
     } catch (error) {
       console.error("API /rules failed:", error);
-      // Fallback to localStorage mock
       const stored = localStorage.getItem('mockWorkflows');
       return { isMock: true, data: stored ? JSON.parse(stored) : [] };
+    }
+  },
+
+  getWorkflow: async (id) => {
+    try {
+      const response = await client.get(`rules/${id}`);
+      return { isMock: false, data: response.data };
+    } catch (error) {
+      console.error(`API GET /rules/${id} failed:`, error);
+      const stored = JSON.parse(localStorage.getItem('mockWorkflows') || '[]');
+      const wf = stored.find(w => w.WorkflowDefinitionId === id || w.WorkflowDefinitionId === Number(id));
+      return { isMock: true, data: wf || null };
     }
   },
 
@@ -157,16 +183,57 @@ export const rulesApi = {
     }
   },
 
+  updateWorkflow: async (id, workflowDef) => {
+    try {
+      const response = await client.put(`rules/${id}`, workflowDef);
+      return { isMock: false, data: response.data };
+    } catch (error) {
+      console.error(`API PUT /rules/${id} failed:`, error);
+      const stored = JSON.parse(localStorage.getItem('mockWorkflows') || '[]');
+      const idx = stored.findIndex(w => w.WorkflowDefinitionId === id || w.WorkflowDefinitionId === Number(id));
+      if (idx >= 0) {
+        stored[idx] = { ...stored[idx], ...workflowDef, WorkflowDefinitionId: stored[idx].WorkflowDefinitionId };
+        localStorage.setItem('mockWorkflows', JSON.stringify(stored));
+        return { isMock: true, data: stored[idx] };
+      }
+      return { isMock: true, data: null };
+    }
+  },
+
+  deleteWorkflow: async (id) => {
+    try {
+      const response = await client.delete(`rules/${id}`);
+      return { isMock: false, data: response.data };
+    } catch (error) {
+      console.error(`API DELETE /rules/${id} failed:`, error);
+      const stored = JSON.parse(localStorage.getItem('mockWorkflows') || '[]');
+      const filtered = stored.filter(w => w.WorkflowDefinitionId !== id && w.WorkflowDefinitionId !== Number(id));
+      localStorage.setItem('mockWorkflows', JSON.stringify(filtered));
+      return { isMock: true, data: { success: true } };
+    }
+  },
+
   getScenarios: async (workflowId) => {
     try {
-      // In a real API, might be /rules/{workflowId}/scenarios
       const response = await client.get('scenarios', { params: { workflowId } });
       return { isMock: false, data: response.data };
     } catch (error) {
       console.error("API GET /scenarios failed:", error);
       const stored = JSON.parse(localStorage.getItem('mockScenarios') || '[]');
-      const filtered = workflowId ? stored.filter(s => s.WorkflowDefinitionId === workflowId) : stored;
+      const filtered = workflowId ? stored.filter(s => s.WorkflowDefinitionId === workflowId || s.WorkflowDefinitionId === Number(workflowId)) : stored;
       return { isMock: true, data: filtered };
+    }
+  },
+
+  getScenario: async (id) => {
+    try {
+      const response = await client.get(`scenarios/${id}`);
+      return { isMock: false, data: response.data };
+    } catch (error) {
+      console.error(`API GET /scenarios/${id} failed:`, error);
+      const stored = JSON.parse(localStorage.getItem('mockScenarios') || '[]');
+      const sc = stored.find(s => s.ScenarioId === id || s.ScenarioId === Number(id));
+      return { isMock: true, data: sc || null };
     }
   },
 
@@ -182,5 +249,37 @@ export const rulesApi = {
       localStorage.setItem('mockScenarios', JSON.stringify(stored));
       return { isMock: true, data: newScenario };
     }
+  },
+
+  updateScenario: async (id, scenario) => {
+    try {
+      const response = await client.put(`scenarios/${id}`, scenario);
+      return { isMock: false, data: response.data };
+    } catch (error) {
+      console.error(`API PUT /scenarios/${id} failed:`, error);
+      const stored = JSON.parse(localStorage.getItem('mockScenarios') || '[]');
+      const idx = stored.findIndex(s => s.ScenarioId === id || s.ScenarioId === Number(id));
+      if (idx >= 0) {
+        stored[idx] = { ...stored[idx], ...scenario, ScenarioId: stored[idx].ScenarioId };
+        localStorage.setItem('mockScenarios', JSON.stringify(stored));
+        return { isMock: true, data: stored[idx] };
+      }
+      return { isMock: true, data: null };
+    }
+  },
+
+  deleteScenario: async (id) => {
+    try {
+      const response = await client.delete(`scenarios/${id}`);
+      return { isMock: false, data: response.data };
+    } catch (error) {
+      console.error(`API DELETE /scenarios/${id} failed:`, error);
+      const stored = JSON.parse(localStorage.getItem('mockScenarios') || '[]');
+      const filtered = stored.filter(s => s.ScenarioId !== id && s.ScenarioId !== Number(id));
+      localStorage.setItem('mockScenarios', JSON.stringify(filtered));
+      return { isMock: true, data: { success: true } };
+    }
   }
 };
+
+

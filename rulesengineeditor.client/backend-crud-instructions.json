@@ -1,0 +1,254 @@
+{
+  "instruction": "Implement missing CRUD API endpoints for the RulesEngineEditor backend to support the frontend's workflow and scenario management features.",
+  "context": {
+    "project": "RulesEngineEditor.Server",
+    "framework": ".NET 10 ASP.NET Core Web API",
+    "database": "SQL Server with EF Core (code-first, auto-generated entities)",
+    "auth": "JWT Bearer + ASP.NET Core Identity (currently [AllowAnonymous] on RulesController)",
+    "frontend_contract": "The React frontend calls these endpoints via axios with relative paths. Vite proxy rewrites /rules to /api/Rules and /scenarios to /api/Rules/scenarios."
+  },
+  "current_state": {
+    "existing_endpoints": [
+      "GET /api/Rules - Returns List<WorkflowSummaryResponse>",
+      "POST /api/Rules/dry-run - Accepts DryRunRequest, returns EvaluationResult",
+      "POST /api/Rules/scenarios - Accepts SaveScenarioRequest, returns WorkflowTestScenarios (201 Created)"
+    ],
+    "existing_repository_methods": [
+      "Task<List<WorkflowDefinitions>> GetAllWorkflowsAsync(CancellationToken)",
+      "Task<WorkflowDefinitions?> GetWorkflowByIdAsync(int id, CancellationToken)",
+      "Task<WorkflowTestScenarios> SaveScenarioAsync(WorkflowTestScenarios scenario, CancellationToken)"
+    ],
+    "existing_entities": {
+      "WorkflowDefinitions": {
+        "properties": [
+          "int WorkflowDefinitionId (PK, auto-increment)",
+          "string WorkflowName (max 255)",
+          "int Version",
+          "string JsonContent (column type: json)",
+          "string Status (max 20)",
+          "DateTime? CreatedAt",
+          "string? CreatedBy (max 100)"
+        ],
+        "indexes": ["IX_WorkflowDefinitions_Name_Status", "UQ_Workflow_Version (unique)"]
+      },
+      "WorkflowTestScenarios": {
+        "properties": [
+          "int ScenarioId (PK, auto-increment)",
+          "int WorkflowDefinitionId (FK)",
+          "string ScenarioName (max 255)",
+          "string MockInputJson (column type: json)",
+          "string? ExpectedOutputJson (column type: json)",
+          "DateTime? CreatedAt"
+        ],
+        "indexes": ["IX_WorkflowTestScenarios_WorkflowId"]
+      }
+    }
+  },
+  "required_endpoints": {
+    "workflow_crud": [
+      {
+        "method": "GET",
+        "path": "/api/Rules/{id}",
+        "description": "Get a single workflow definition by ID, including full JsonContent",
+        "response": "WorkflowDefinitionResponse (200) or 404",
+        "frontend_usage": "apiClient.getWorkflow(id) - loads workflow into editor"
+      },
+      {
+        "method": "POST",
+        "path": "/api/Rules",
+        "description": "Create a new workflow definition",
+        "request": "CreateWorkflowRequest",
+        "response": "WorkflowDefinitionResponse (201) or 400",
+        "frontend_usage": "apiClient.saveWorkflow(workflowDef) - saves new workflow from editor"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/Rules/{id}",
+        "description": "Update an existing workflow definition",
+        "request": "UpdateWorkflowRequest",
+        "response": "WorkflowDefinitionResponse (200) or 404/400",
+        "frontend_usage": "apiClient.updateWorkflow(id, workflowDef) - updates existing workflow"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/Rules/{id}",
+        "description": "Delete a workflow definition by ID",
+        "response": "204 NoContent or 404",
+        "frontend_usage": "apiClient.deleteWorkflow(id) - deletes workflow"
+      }
+    ],
+    "scenario_crud": [
+      {
+        "method": "GET",
+        "path": "/api/Rules/scenarios",
+        "description": "List all scenarios, optionally filtered by workflowDefinitionId query parameter",
+        "query_params": ["workflowId (optional int)"],
+        "response": "List<ScenarioResponse> (200)",
+        "frontend_usage": "apiClient.getScenarios(workflowId) - loads scenarios for selected workflow"
+      },
+      {
+        "method": "GET",
+        "path": "/api/Rules/scenarios/{id}",
+        "description": "Get a single scenario by ID",
+        "response": "ScenarioResponse (200) or 404",
+        "frontend_usage": "apiClient.getScenario(id) - loads scenario into editor"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/Rules/scenarios/{id}",
+        "description": "Update an existing scenario",
+        "request": "UpdateScenarioRequest",
+        "response": "ScenarioResponse (200) or 404/400",
+        "frontend_usage": "apiClient.updateScenario(id, scenario) - updates scenario"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/Rules/scenarios/{id}",
+        "description": "Delete a scenario by ID",
+        "response": "204 NoContent or 404",
+        "frontend_usage": "apiClient.deleteScenario(id) - deletes scenario"
+      }
+    ]
+  },
+  "required_dtos": {
+    "WorkflowDefinitionResponse": {
+      "properties": [
+        "int WorkflowDefinitionId",
+        "string WorkflowName",
+        "int Version",
+        "string JsonContent",
+        "string Status",
+        "DateTime? CreatedAt",
+        "string? CreatedBy"
+      ],
+      "notes": "Full workflow response including JsonContent (the raw rules JSON string)"
+    },
+    "CreateWorkflowRequest": {
+      "properties": [
+        "string WorkflowName (required, max 255)",
+        "int Version (required, default 1)",
+        "string JsonContent (required, valid JSON string)",
+        "string Status (required, max 20, e.g., 'Active', 'Draft')"
+      ],
+      "validation": "JsonContent must be valid JSON. WorkflowName + Version must be unique (UQ_Workflow_Version)."
+    },
+    "UpdateWorkflowRequest": {
+      "properties": [
+        "string? WorkflowName",
+        "int? Version",
+        "string? JsonContent",
+        "string? Status"
+      ],
+      "validation": "If JsonContent provided, must be valid JSON. If WorkflowName/Version changed, must not violate UQ_Workflow_Version."
+    },
+    "ScenarioResponse": {
+      "properties": [
+        "int ScenarioId",
+        "int WorkflowDefinitionId",
+        "string ScenarioName",
+        "string MockInputJson",
+        "string? ExpectedOutputJson",
+        "DateTime? CreatedAt"
+      ]
+    },
+    "UpdateScenarioRequest": {
+      "properties": [
+        "string? ScenarioName (max 255)",
+        "string? MockInputJson (must be valid JSON if provided)",
+        "string? ExpectedOutputJson (must be valid JSON if provided)"
+      ],
+      "notes": "WorkflowDefinitionId should NOT be updatable (scenarios belong to one workflow)"
+    }
+  },
+  "implementation_tasks": [
+    {
+      "task": "Add repository methods to IRulesRepository",
+      "file": "Infrastructure/Repositories/IRulesRepository.cs",
+      "methods": [
+        "Task<WorkflowDefinitions> CreateWorkflowAsync(WorkflowDefinitions workflow, CancellationToken ct = default)",
+        "Task<WorkflowDefinitions?> UpdateWorkflowAsync(int id, WorkflowDefinitions workflow, CancellationToken ct = default)",
+        "Task<bool> DeleteWorkflowAsync(int id, CancellationToken ct = default)",
+        "Task<List<WorkflowTestScenarios>> GetScenariosAsync(int? workflowId = null, CancellationToken ct = default)",
+        "Task<WorkflowTestScenarios?> GetScenarioByIdAsync(int id, CancellationToken ct = default)",
+        "Task<WorkflowTestScenarios?> UpdateScenarioAsync(int id, WorkflowTestScenarios scenario, CancellationToken ct = default)",
+        "Task<bool> DeleteScenarioAsync(int id, CancellationToken ct = default)"
+      ]
+    },
+    {
+      "task": "Implement repository methods in RulesRepository",
+      "file": "Infrastructure/Repositories/RulesRepository.cs",
+      "notes": [
+        "Use EF Core DbSet operations (Add, Update, Remove, SaveChangesAsync)",
+        "For GetScenariosAsync: filter by workflowId if provided, order by ScenarioName",
+        "For Update methods: load existing entity, apply changes, save. Return null if not found.",
+        "For Delete methods: return true if deleted, false if not found."
+      ]
+    },
+    {
+      "task": "Add controller actions to RulesController",
+      "file": "Controllers/RulesController.cs",
+      "actions": [
+        "GET api/Rules/{id} - call repository.GetWorkflowByIdAsync, map to WorkflowDefinitionResponse",
+        "POST api/Rules - validate request, create entity, save, return 201 with WorkflowDefinitionResponse",
+        "PUT api/Rules/{id} - load existing, apply changes, save, return 200 with WorkflowDefinitionResponse",
+        "DELETE api/Rules/{id} - delete, return 204 or 404",
+        "GET api/Rules/scenarios - accept workflowId query param, return List<ScenarioResponse>",
+        "GET api/Rules/scenarios/{id} - return ScenarioResponse or 404",
+        "PUT api/Rules/scenarios/{id} - validate JSON fields, update, return ScenarioResponse",
+        "DELETE api/Rules/scenarios/{id} - delete, return 204 or 404"
+      ],
+      "validation_rules": [
+        "JsonContent must be valid JSON for Create and Update workflow",
+        "MockInputJson and ExpectedOutputJson must be valid JSON for Create and Update scenario",
+        "Use existing IsValidJson helper method"
+      ]
+    },
+    {
+      "task": "Update OpenAPI spec",
+      "file": "Api/v1.yaml and Api/v1.json",
+      "notes": "Add all new endpoints and schemas to both YAML and JSON OpenAPI specs. The frontend uses these for reference."
+    }
+  ],
+  "frontend_api_contract": {
+    "notes": "The frontend apiClient.js expects these exact response shapes:",
+    "getWorkflows": "Returns { isMock: false, data: [...] } where data is array of workflow objects",
+    "getWorkflow": "Returns { isMock: false, data: workflowObject } or { isMock: false, data: null } for 404",
+    "saveWorkflow": "Returns { isMock: false, data: createdWorkflow } with WorkflowDefinitionId assigned",
+    "updateWorkflow": "Returns { isMock: false, data: updatedWorkflow }",
+    "deleteWorkflow": "Returns { isMock: false, data: { success: true } }",
+    "getScenarios": "Returns { isMock: false, data: [...] } filtered by workflowId if provided",
+    "getScenario": "Returns { isMock: false, data: scenarioObject } or { isMock: false, data: null }",
+    "saveScenario": "Returns { isMock: false, data: createdScenario } with ScenarioId assigned (201)",
+    "updateScenario": "Returns { isMock: false, data: updatedScenario }",
+    "deleteScenario": "Returns { isMock: false, data: { success: true } }"
+  },
+  "critical_constraints": [
+    "The database uses EF Core with auto-generated entities. DO NOT modify entity classes manually - they are generated by EF Core Power Tools.",
+    "The existing unique constraint UQ_Workflow_Version on (WorkflowName, Version) must be respected.",
+    "JsonContent column is stored as JSON string in SQL Server (column type: json).",
+    "All datetime values should be UTC.",
+    "The frontend falls back to localStorage mock data when backend returns 404/500. Ensure endpoints return proper HTTP status codes.",
+    "Maintain [AllowAnonymous] on RulesController for now - auth will be added in a future phase.",
+    "Use CancellationToken parameters on all async methods (existing pattern).",
+    "Follow existing code style: sealed classes, primary constructors, record DTOs."
+  ],
+  "testing_requirements": [
+    "Add unit tests for new repository methods in RulesEngineEditor.Server.UnitTests",
+    "Add integration tests for new controller endpoints",
+    "Test the unique constraint violation scenario for workflows",
+    "Test JSON validation for JsonContent, MockInputJson, ExpectedOutputJson",
+    "Test filtering scenarios by workflowId"
+  ],
+  "files_to_modify": [
+    "BE/RulesEngineEditor.Server/Infrastructure/Repositories/IRulesRepository.cs",
+    "BE/RulesEngineEditor.Server/Infrastructure/Repositories/RulesRepository.cs",
+    "BE/RulesEngineEditor.Server/Controllers/RulesController.cs",
+    "BE/RulesEngineEditor.Server/Api/v1.yaml",
+    "BE/RulesEngineEditor.Server/Api/v1.json"
+  ],
+  "files_to_create": [
+    "New DTO records in RulesController.cs or separate DTO files",
+    "Unit tests for new repository methods",
+    "Integration tests for new controller endpoints"
+  ]
+}

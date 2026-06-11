@@ -1,11 +1,11 @@
-import { Plus, Trash2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, XCircle, AlertCircle, Bot, User } from 'lucide-react';
 
 export default function AssertionTable({ assertions, testResult, dispatch }) {
   
   const handleAdd = () => {
     dispatch({ 
       type: 'ADD_ASSERTION', 
-      payload: { id: Date.now().toString(), path: '', expectedValue: '', active: true } 
+      payload: { id: Date.now().toString(), path: '', expectedValue: '', active: true, source: 'manual' } 
     });
   };
 
@@ -29,15 +29,37 @@ export default function AssertionTable({ assertions, testResult, dispatch }) {
         current = current[key];
       }
       return current;
-    } catch (e) {
+    } catch {
       return undefined;
     }
   };
 
+  // Calculate overall scenario validation status
+  let overallStatus = null; // null = no assertions, 'pass' = all pass, 'fail' = some fail
+  if (testResult && assertions.length > 0) {
+    const allPassed = assertions.every(a => {
+      if (!a.path || !a.active) return true;
+      const actual = evaluatePath(testResult, a.path);
+      return String(actual) === String(a.expectedValue);
+    });
+    overallStatus = allPassed ? 'pass' : 'fail';
+  }
+
   return (
     <div className="flex flex-col bg-slate-950 border-t border-slate-800 h-64">
       <div className="flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-slate-900">
-        <h2 className="text-sm font-semibold text-slate-200">Expected Values (Assertions)</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-semibold text-slate-200">Expected Values (Assertions)</h2>
+          {overallStatus && (
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
+              overallStatus === 'pass'
+                ? 'bg-lime-500/20 text-lime-400 border-lime-500/30'
+                : 'bg-red-500/20 text-red-400 border-red-500/30'
+            }`}>
+              {overallStatus === 'pass' ? 'Scenario Passed' : 'Scenario Failed'}
+            </span>
+          )}
+        </div>
         <button onClick={handleAdd} className="flex items-center gap-1 text-xs text-lime-400 hover:text-lime-300">
           <Plus size={14} /> Add Assertion
         </button>
@@ -46,6 +68,7 @@ export default function AssertionTable({ assertions, testResult, dispatch }) {
         <table className="w-full text-left text-sm text-slate-300">
           <thead className="text-xs text-slate-500 uppercase bg-slate-900 border-b border-slate-800">
             <tr>
+              <th className="px-3 py-2 font-medium">Source</th>
               <th className="px-3 py-2 font-medium">Path (e.g. [0].IsSuccess)</th>
               <th className="px-3 py-2 font-medium">Expected Value</th>
               <th className="px-3 py-2 font-medium">Actual Value</th>
@@ -68,7 +91,22 @@ export default function AssertionTable({ assertions, testResult, dispatch }) {
               }
 
               return (
-                <tr key={a.id} className="border-b border-slate-800/50 hover:bg-slate-900/50">
+                <tr key={a.id} className={`border-b border-slate-800/50 hover:bg-slate-900/50 ${
+                  a.source === 'auto' ? 'bg-slate-900/30' : ''
+                }`}>
+                  <td className="px-3 py-2">
+                    {a.source === 'auto' ? (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                        <Bot size={10} />
+                        Auto
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-700 text-slate-400 border border-slate-600">
+                        <User size={10} />
+                        Manual
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-2">
                     <input 
                       type="text" 
@@ -109,7 +147,7 @@ export default function AssertionTable({ assertions, testResult, dispatch }) {
             })}
             {assertions.length === 0 && (
               <tr>
-                <td colSpan="5" className="px-3 py-6 text-center text-slate-600 italic">
+                <td colSpan="6" className="px-3 py-6 text-center text-slate-600 italic">
                   No assertions defined. Add one to test your workflow execution.
                 </td>
               </tr>

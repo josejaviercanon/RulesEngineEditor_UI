@@ -11,8 +11,14 @@ export default defineConfig({
     server: {
         port: 65426,
         proxy: {
-            '/rules': 'http://localhost:5064',
-            '/scenarios': 'http://localhost:5064',
+            '/rules': {
+                target: 'http://localhost:5064',
+                rewrite: (path) => path.replace(/^\/rules/, '/api/Rules')
+            },
+            '/scenarios': {
+                target: 'http://localhost:5064',
+                rewrite: (path) => path.replace(/^\/scenarios/, '/api/Rules/scenarios')
+            },
             '/login': 'http://localhost:5064',
             '/register': 'http://localhost:5064',
             '/refresh': 'http://localhost:5064',

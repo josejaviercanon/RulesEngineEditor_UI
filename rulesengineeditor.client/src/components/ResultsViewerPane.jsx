@@ -4,8 +4,9 @@ import Editor from '@monaco-editor/react';
 
 const RuleNode = ({ node }) => {
   const [expanded, setExpanded] = useState(true);
-  const isSuccess = node.IsSuccess === true || node.IsSuccess === "True";
+  const isSuccess = node.IsSuccess === true || node.IsSuccess === "True" || node.isSuccess === true;
   const hasChildren = node.ChildResults && node.ChildResults.length > 0;
+  const exceptionMessage = node.ExceptionMessage || node.exceptionMessage;
 
   return (
     <div className="ml-4 border-l border-slate-700/50 pl-2 py-1">
@@ -21,12 +22,12 @@ const RuleNode = ({ node }) => {
         ) : (
           <XCircle size={14} className="text-red-500" />
         )}
-        <span className="font-mono text-sm text-slate-200">
-          {node.Rule?.RuleName || "Rule"}
+        <span className={`font-mono text-sm ${isSuccess ? 'text-slate-200' : 'text-red-300'}`}>
+          {node.Rule?.RuleName || node.Rule?.ruleName || "Rule"}
         </span>
-        {!isSuccess && node.ExceptionMessage && (
+        {exceptionMessage && (
           <span className="text-xs text-red-400 ml-2 bg-red-500/10 px-2 py-0.5 rounded truncate max-w-xs">
-            {node.ExceptionMessage}
+            {exceptionMessage}
           </span>
         )}
       </div>
@@ -41,8 +42,14 @@ const RuleNode = ({ node }) => {
   );
 };
 
-export default function ResultsViewerPane({ testResult, isMockMode }) {
+export default function ResultsViewerPane({ testResult, isMockMode, onlineMode }) {
   const [viewMode, setViewMode] = useState('tree'); // 'tree' or 'json'
+
+  // Handle both backend EvaluationResult shape and local simulation shape
+  const resultTree = testResult?.ruleResultTree || testResult?.RuleResultTree || (Array.isArray(testResult) ? testResult : null);
+  const overallSuccess = testResult?.isSuccess ?? testResult?.IsSuccess ?? null;
+  const errorMessage = testResult?.errorMessage || testResult?.ErrorMessage || null;
+  const hasError = !!errorMessage;
 
   return (
     <div className="flex flex-col h-full bg-slate-900">
@@ -51,7 +58,16 @@ export default function ResultsViewerPane({ testResult, isMockMode }) {
           <h2 className="text-sm font-semibold text-slate-200 tracking-wide">Execution Results</h2>
           {isMockMode && (
             <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-yellow-500/20 text-yellow-500 border border-yellow-500/30">
-              Sandbox Mode (Local Simulator)
+              {onlineMode ? 'Sandbox Mode (Server Simulator)' : 'Sandbox Mode (Local Simulator)'}
+            </span>
+          )}
+          {overallSuccess !== null && (
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
+              overallSuccess 
+                ? 'bg-lime-500/20 text-lime-400 border-lime-500/30' 
+                : 'bg-red-500/20 text-red-400 border-red-500/30'
+            }`}>
+              {overallSuccess ? 'Overall Success' : 'Overall Failed'}
             </span>
           )}
         </div>
@@ -72,6 +88,20 @@ export default function ResultsViewerPane({ testResult, isMockMode }) {
           </button>
         </div>
       </div>
+
+      {/* Error Banner */}
+      {hasError && (
+        <div className="px-4 py-3 bg-red-500/10 border-b border-red-500/20">
+          <div className="flex items-start gap-2">
+            <XCircle size={16} className="text-red-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-red-400">Evaluation Error</p>
+              <p className="text-xs text-red-300 mt-1 font-mono">{errorMessage}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 overflow-auto p-4">
         {!testResult ? (
           <div className="flex items-center justify-center h-full text-slate-600 italic text-sm">
@@ -79,10 +109,20 @@ export default function ResultsViewerPane({ testResult, isMockMode }) {
           </div>
         ) : viewMode === 'tree' ? (
           <div className="text-slate-300">
-            {Array.isArray(testResult) ? testResult.map((res, idx) => (
-              <RuleNode key={idx} node={res} />
-            )) : (
-              <RuleNode node={testResult} />
+            {hasError ? (
+              <div className="text-slate-500 italic text-sm">
+                Fix the error above to see results.
+              </div>
+            ) : resultTree ? (
+              Array.isArray(resultTree) ? resultTree.map((res, idx) => (
+                <RuleNode key={idx} node={res} />
+              )) : (
+                <RuleNode node={resultTree} />
+              )
+            ) : (
+              <div className="text-slate-500 italic text-sm">
+                No result tree available.
+              </div>
             )}
           </div>
         ) : (
