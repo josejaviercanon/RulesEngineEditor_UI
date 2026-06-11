@@ -1,34 +1,45 @@
 import { defineConfig, devices } from '@playwright/test';
 
+/**
+ * Playwright configuration for RulesEngineEditor E2E testing.
+ * @see https://playwright.dev/docs/test-configuration
+ */
 export default defineConfig({
   testDir: './tests',
-  fullyParallel: false, // Turned off for sequential local CRUD execution stability
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: 0,
-  workers: 1, // Isolated run thread for dependable local backend validation
-  reporter: 'html',
-  
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: [
+    ['html', { open: 'on-failure' }],
+    ['list']
+  ],
   use: {
-    baseURL: 'http://localhost:5173',
-    trace: 'on-first-retry',
-    video: 'on',
+    baseURL: 'http://localhost:65426',
+    trace: 'on',
+    screenshot: 'only-on-failure',
+    video: 'on-first-retry'
   },
 
   projects: [
-    // 1. Setup Project: Executes first to capture JWT token state
     {
       name: 'setup',
-      testMatch: /auth\.setup\.ts/,
+      testMatch: '**/*.setup.ts'
     },
-    // 2. Main E2E Testing Project: Depends on 'setup' finishing successfully
     {
-      name: 'chromium',
-      use: { 
-        ...devices['Desktop Chrome'],
-        // Tell Playwright to inject the pre-saved storage state
-        storageState: 'playwright/.auth/user.json',
-      },
+      name: 'e2e',
       dependencies: ['setup'],
-    },
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'playwright/.auth/user.json'
+      }
+    }
   ],
+
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:65426',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120000
+  }
 });

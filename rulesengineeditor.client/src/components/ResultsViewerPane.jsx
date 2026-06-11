@@ -46,13 +46,15 @@ export default function ResultsViewerPane({ testResult, isMockMode, onlineMode }
   const [viewMode, setViewMode] = useState('tree'); // 'tree' or 'json'
 
   // Handle both backend EvaluationResult shape and local simulation shape
-  const resultTree = testResult?.ruleResultTree || testResult?.RuleResultTree || (Array.isArray(testResult) ? testResult : null);
-  const overallSuccess = testResult?.isSuccess ?? testResult?.IsSuccess ?? null;
-  const errorMessage = testResult?.errorMessage || testResult?.ErrorMessage || null;
+  // apiClient wraps responses as { isMock: boolean, data: <payload> }
+  const resultData = testResult?.data || testResult;
+  const resultTree = resultData?.ruleResultTree || resultData?.RuleResultTree || (Array.isArray(resultData) ? resultData : null);
+  const overallSuccess = resultData?.isSuccess ?? resultData?.IsSuccess ?? null;
+  const errorMessage = resultData?.errorMessage || resultData?.ErrorMessage || resultData?.error || null;
   const hasError = !!errorMessage;
 
   return (
-    <div className="flex flex-col h-full bg-slate-900">
+    <div data-testid="results-viewer-pane" className="flex flex-col h-full bg-slate-900">
       <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700/50 bg-slate-800/50">
         <div className="flex items-center gap-3">
           <h2 className="text-sm font-semibold text-slate-200 tracking-wide">Execution Results</h2>

@@ -1,17 +1,35 @@
-import { test as setup } from '@playwright/test';
+import { test as setup, expect } from '@playwright/test';
 
-setup('authenticate local session', async ({ page }) => {
-  // 1. Navigate to your app domain
-  await page.goto('http://localhost:5173');
-  
-  // 2. Inject your local development JWT token
-  await page.evaluate(() => {
-    const dummyToken = "YOUR_LOCAL_DEV_JWT_TOKEN"; 
-    localStorage.setItem('token', dummyToken);
-    // Add any other user profile items your React state expects:
-    localStorage.setItem('user', JSON.stringify({ id: 1, roles: ['Admin'] }));
-  });
+const authFile = 'playwright/.auth/user.json';
+const testUser = {
+  email: 'admin@localhost.local',
+  password: 'Admin@123456'
+};
 
-  // 3. Save storage state to skip login step in other tests
-  await page.context().storageState({ path: 'playwright/.auth/user.json' });
+setup('authenticate', async ({ page }) => {
+  // Navigate to root and let the app handle auth routing
+  await page.goto('/');
+
+  // Wait for either the login form or the editor to appear
+  const loginEmail = page.locator('input[type="email"]');
+  const editorPane = page.locator('[data-testid="rules-editor-pane"]');
+
+  // Wait up to 15s for one of them to be visible
+  await expect(loginEmail.or(editorPane)).toBeVisible({ timeout: 15000 });
+
+  // If we're on the login page, perform manual login
+  if (await loginEmail.isVisible().catch(() => false)) {
+    await page.fill('input[type="email"]', testUser.email);
+    await page.fill('input[type="password"]', testUser.password);
+    await page.click('button[type="submit"]');
+
+    // Wait for navigation to the editor
+    await expect(editorPane).toBeVisible({ timeout: 15000 });
+  }
+
+  // Verify we are on the editor
+  await expect(editorPane).toBeVisible();
+
+  // Save authentication state
+  await page.context().storageState({ path: authFile });
 });

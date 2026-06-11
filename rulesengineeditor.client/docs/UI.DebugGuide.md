@@ -61,6 +61,45 @@
 
 ---
 
+## Running E2E Tests
+
+The project uses Playwright for end-to-end UI testing against the local dev server and live backend.
+
+### Prerequisites
+1. Ensure the backend is running (HTTP profile: `http://localhost:5064` or HTTPS: `https://localhost:7119`)
+2. Install dependencies: `npm install` (already includes `@playwright/test`)
+3. Install browser binaries: `npx playwright install chromium`
+
+### Test Commands
+- **Run all tests**: `npx playwright test`
+- **Run in headed mode (visual debugging)**: `npx playwright test --headed`
+- **Run with UI mode**: `npx playwright test --ui`
+- **Run specific project**: `npx playwright test --project=e2e`
+- **Run setup only (auth)**: `npx playwright test --project=setup`
+
+### Auth Setup
+- The `setup` project (`tests/auth.setup.ts`) logs in with dev credentials (`admin@localhost.local` / `Admin@123456`)
+- It writes the authenticated storage state to `playwright/.auth/user.json`
+- All `e2e` tests reuse this state via `storageState` in `playwright.config.ts`
+
+### Inspecting Failures
+- HTML report opens automatically on failure (configured in `playwright.config.ts`)
+- Trace files are saved to `test-results/` — open them with:
+  - VS Code Playwright extension
+  - `npx playwright show-trace test-results/<trace-file>.zip`
+- Screenshots are captured automatically on failure
+
+### Test Structure
+- `tests/auth.setup.ts` — Global authentication setup
+- `tests/rules-engine-crud.spec.ts` — Workflow & Scenario CRUD tests
+- `tests/rules-engine-dryrun.spec.ts` — Dry-run execution & results validation
+
+### Selectors
+- Tests use `data-testid` attributes for stable element locating
+- Key selectors: `rules-editor-pane`, `facts-editor-pane`, `results-viewer-pane`, `run-dryrun-btn`, `new-workflow-btn`, `save-workflow-btn`, `delete-workflow-btn`, `new-scenario-btn`, `save-scenario-btn`, `delete-scenario-btn`
+
+---
+
 ## Human Intervention
 
 - Developers manually adjust Monaco Editor configuration and themes

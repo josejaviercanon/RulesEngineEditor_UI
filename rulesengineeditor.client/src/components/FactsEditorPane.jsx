@@ -44,7 +44,7 @@ export default function FactsEditorPane({ value, onChange, currentSettings, onSe
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 border-r border-slate-700/50">
+    <div data-testid="facts-editor-pane" className="flex flex-col h-full bg-slate-900 border-r border-slate-700/50">
       {/* Tab Bar */}
       <div className="flex border-b border-slate-700/50 bg-slate-800/50">
         {TABS.map(tab => (

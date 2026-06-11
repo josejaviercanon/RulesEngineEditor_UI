@@ -46,7 +46,7 @@ export default function AssertionTable({ assertions, testResult, dispatch }) {
   }
 
   return (
-    <div className="flex flex-col bg-slate-950 border-t border-slate-800 h-64">
+    <div data-testid="assertion-table" className="flex flex-col bg-slate-950 border-t border-slate-800 h-64">
       <div className="flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-slate-900">
         <div className="flex items-center gap-3">
           <h2 className="text-sm font-semibold text-slate-200">Expected Values (Assertions)</h2>
@@ -60,7 +60,7 @@ export default function AssertionTable({ assertions, testResult, dispatch }) {
             </span>
           )}
         </div>
-        <button onClick={handleAdd} className="flex items-center gap-1 text-xs text-lime-400 hover:text-lime-300">
+        <button onClick={handleAdd} data-testid="add-assertion-btn" className="flex items-center gap-1 text-xs text-lime-400 hover:text-lime-300">
           <Plus size={14} /> Add Assertion
         </button>
       </div>

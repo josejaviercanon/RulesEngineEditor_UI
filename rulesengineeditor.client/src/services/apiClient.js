@@ -77,6 +77,31 @@ client.interceptors.response.use(
   }
 );
 
+// Normalize backend camelCase responses to frontend PascalCase expectations
+function normalizeWorkflow(wf) {
+  if (!wf) return wf;
+  return {
+    WorkflowDefinitionId: wf.workflowDefinitionId ?? wf.WorkflowDefinitionId,
+    WorkflowName: wf.workflowName ?? wf.WorkflowName,
+    Version: wf.version ?? wf.Version,
+    Status: wf.status ?? wf.Status,
+    CreatedAt: wf.createdAt ?? wf.CreatedAt,
+    CreatedBy: wf.createdBy ?? wf.CreatedBy,
+    JsonContent: wf.jsonContent ?? wf.JsonContent
+  };
+}
+
+function normalizeScenario(sc) {
+  if (!sc) return sc;
+  return {
+    ScenarioId: sc.scenarioId ?? sc.ScenarioId,
+    ScenarioName: sc.scenarioName ?? sc.ScenarioName,
+    WorkflowDefinitionId: sc.workflowDefinitionId ?? sc.WorkflowDefinitionId,
+    MockInputJson: sc.mockInputJson ?? sc.MockInputJson,
+    ExpectedOutputJson: sc.expectedOutputJson ?? sc.ExpectedOutputJson
+  };
+}
+
 // Mock simulation of RuleResultTree structure based on Microsoft.RulesEngine
 const simulateEvaluation = (rulesStr, factsStr) => {
   return new Promise((resolve) => {
@@ -87,14 +112,14 @@ const simulateEvaluation = (rulesStr, factsStr) => {
         rules = JSON.parse(rulesStr);
         if (!Array.isArray(rules)) rules = [rules];
       } catch {
-        return resolve({ error: "Invalid Rules JSON" });
+        return resolve({ isMock: true, data: { isSuccess: false, errorMessage: "Invalid Rules JSON" } });
       }
 
       let facts = {};
       try {
         facts = JSON.parse(factsStr);
       } catch {
-        return resolve({ error: "Invalid Facts JSON" });
+        return resolve({ isMock: true, data: { isSuccess: false, errorMessage: "Invalid Facts JSON" } });
       }
 
       // Generate a mock RuleResultTree based on the input workflows
@@ -109,7 +134,7 @@ const simulateEvaluation = (rulesStr, factsStr) => {
         }))
       }));
 
-      resolve({ isMock: true, data: tree });
+      resolve({ isMock: true, data: { isSuccess: true, ruleResultTree: tree } });
     }, 500);
   });
 };
@@ -149,7 +174,10 @@ export const rulesApi = {
   getWorkflows: async () => {
     try {
       const response = await client.get('rules');
-      return { isMock: false, data: response.data };
+      const data = Array.isArray(response.data)
+        ? response.data.map(normalizeWorkflow)
+        : response.data;
+      return { isMock: false, data };
     } catch (error) {
       console.error("API /rules failed:", error);
       const stored = localStorage.getItem('mockWorkflows');
@@ -160,7 +188,7 @@ export const rulesApi = {
   getWorkflow: async (id) => {
     try {
       const response = await client.get(`rules/${id}`);
-      return { isMock: false, data: response.data };
+      return { isMock: false, data: normalizeWorkflow(response.data) };
     } catch (error) {
       console.error(`API GET /rules/${id} failed:`, error);
       const stored = JSON.parse(localStorage.getItem('mockWorkflows') || '[]');
@@ -172,7 +200,7 @@ export const rulesApi = {
   saveWorkflow: async (workflowDef) => {
     try {
       const response = await client.post('rules', workflowDef);
-      return { isMock: false, data: response.data };
+      return { isMock: false, data: normalizeWorkflow(response.data) };
     } catch (error) {
       console.error("API POST /rules failed:", error);
       const stored = JSON.parse(localStorage.getItem('mockWorkflows') || '[]');
@@ -186,7 +214,7 @@ export const rulesApi = {
   updateWorkflow: async (id, workflowDef) => {
     try {
       const response = await client.put(`rules/${id}`, workflowDef);
-      return { isMock: false, data: response.data };
+      return { isMock: false, data: normalizeWorkflow(response.data) };
     } catch (error) {
       console.error(`API PUT /rules/${id} failed:`, error);
       const stored = JSON.parse(localStorage.getItem('mockWorkflows') || '[]');
@@ -216,7 +244,10 @@ export const rulesApi = {
   getScenarios: async (workflowId) => {
     try {
       const response = await client.get('scenarios', { params: { workflowId } });
-      return { isMock: false, data: response.data };
+      const data = Array.isArray(response.data)
+        ? response.data.map(normalizeScenario)
+        : response.data;
+      return { isMock: false, data };
     } catch (error) {
       console.error("API GET /scenarios failed:", error);
       const stored = JSON.parse(localStorage.getItem('mockScenarios') || '[]');
@@ -228,7 +259,7 @@ export const rulesApi = {
   getScenario: async (id) => {
     try {
       const response = await client.get(`scenarios/${id}`);
-      return { isMock: false, data: response.data };
+      return { isMock: false, data: normalizeScenario(response.data) };
     } catch (error) {
       console.error(`API GET /scenarios/${id} failed:`, error);
       const stored = JSON.parse(localStorage.getItem('mockScenarios') || '[]');
@@ -240,7 +271,7 @@ export const rulesApi = {
   saveScenario: async (scenario) => {
     try {
       const response = await client.post('scenarios', scenario);
-      return { isMock: false, data: response.data };
+      return { isMock: false, data: normalizeScenario(response.data) };
     } catch (error) {
       console.error("API POST /scenarios failed:", error);
       const stored = JSON.parse(localStorage.getItem('mockScenarios') || '[]');
@@ -254,7 +285,7 @@ export const rulesApi = {
   updateScenario: async (id, scenario) => {
     try {
       const response = await client.put(`scenarios/${id}`, scenario);
-      return { isMock: false, data: response.data };
+      return { isMock: false, data: normalizeScenario(response.data) };
     } catch (error) {
       console.error(`API PUT /scenarios/${id} failed:`, error);
       const stored = JSON.parse(localStorage.getItem('mockScenarios') || '[]');

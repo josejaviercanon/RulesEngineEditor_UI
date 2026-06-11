@@ -301,10 +301,10 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Workflows</h3>
             <div className="flex items-center gap-1">
-              <button onClick={handleSaveNewWorkflow} className="text-lime-400 hover:text-lime-300 p-1" title="Save as New Workflow">
+              <button onClick={handleSaveNewWorkflow} data-testid="new-workflow-btn" className="text-lime-400 hover:text-lime-300 p-1" title="Save as New Workflow">
                 <Plus size={14} />
               </button>
-              <button onClick={handleUpdateWorkflow} className="text-slate-400 hover:text-slate-200 p-1" title="Update Current Workflow">
+              <button onClick={handleUpdateWorkflow} data-testid="save-workflow-btn" className="text-slate-400 hover:text-slate-200 p-1" title="Update Current Workflow">
                 <Save size={14} />
               </button>
             </div>
@@ -315,6 +315,7 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
               return (
                 <li 
                   key={wf.WorkflowDefinitionId || wf.WorkflowName} 
+                  data-testid={`workflow-item-${wf.WorkflowDefinitionId}`}
                   className={`flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer transition-colors group ${
                     isActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'hover:bg-slate-800'
                   }`}
@@ -325,6 +326,7 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
                   </div>
                   <button 
                     onClick={() => handleDeleteWorkflow(wf)}
+                    data-testid="delete-workflow-btn"
                     className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 p-0.5 transition-opacity"
                     title="Delete Workflow"
                   >
@@ -346,10 +348,10 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
               Scenarios {state.currentWorkflowId ? `(${filteredScenarios.length})` : '(select workflow)'}
             </h3>
             <div className="flex items-center gap-1">
-              <button onClick={handleNewScenario} className="text-lime-400 hover:text-lime-300 p-1" title="New Scenario">
+              <button onClick={handleNewScenario} data-testid="new-scenario-btn" className="text-lime-400 hover:text-lime-300 p-1" title="New Scenario">
                 <Plus size={14} />
               </button>
-              <button onClick={handleUpdateScenario} className="text-slate-400 hover:text-slate-200 p-1" title="Update Current Scenario">
+              <button onClick={handleUpdateScenario} data-testid="save-scenario-btn" className="text-slate-400 hover:text-slate-200 p-1" title="Update Current Scenario">
                 <Save size={14} />
               </button>
             </div>
@@ -360,6 +362,7 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
               return (
                 <li 
                   key={sc.ScenarioId} 
+                  data-testid={`scenario-item-${sc.ScenarioId}`}
                   className={`flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer transition-colors group ${
                     isActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'hover:bg-slate-800'
                   }`}
@@ -370,6 +373,7 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
                   </div>
                   <button 
                     onClick={() => handleDeleteScenario(sc)}
+                    data-testid="delete-scenario-btn"
                     className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 p-0.5 transition-opacity"
                     title="Delete Scenario"
                   >
@@ -394,6 +398,7 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
         )}
         <button
           onClick={onDryRun}
+          data-testid="run-dryrun-btn"
           className="w-full flex items-center justify-center gap-2 bg-lime-500 hover:bg-lime-400 text-slate-950 font-semibold py-2 px-4 rounded shadow-lg shadow-lime-500/20 transition-all cursor-pointer"
         >
           <Play size={16} />

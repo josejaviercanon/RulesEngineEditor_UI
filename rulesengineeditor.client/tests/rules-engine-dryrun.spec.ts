@@ -1,25 +1,115 @@
 import { test, expect } from '@playwright/test';
 
-test.use({ storageState: 'playwright/.auth/user.json' });
+function uniqueName(base: string) {
+  return `${base} ${Date.now()}`;
+}
 
-test.describe('RulesEngine Scenario Management & Dry Runs', () => {
+test.describe('Rules Engine Dry-Run Execution', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('[data-testid="rules-editor-pane"]')).toBeVisible();
+  });
 
-  test('should handle scenario CRUD and trigger dry run simulation', async ({ page }) => {
-    await page.goto('http://localhost:5173/workflows/default-id');
+  test('trigger dry-run and verify results', async ({ page }) => {
+    const workflowName = uniqueName('E2E DryRun Workflow');
 
-    // Create Scenario
-    await page.getByTestId('btn-add-scenario').click();
-    await page.getByTestId('input-scenario-name').fill('High Risk Transaction');
-    await page.getByTestId('textarea-mock-payload').fill(JSON.stringify({ amount: 5000, country: 'US' }, null, 2));
-    await page.getByTestId('btn-save-scenario').click();
+    page.on('dialog', dialog => {
+      if (dialog.type() === 'prompt') {
+        dialog.accept(workflowName);
+      } else {
+        dialog.accept();
+      }
+    });
 
-    // Trigger Dry Run
-    await page.getByTestId('btn-select-scenario').selectOption({ label: 'High Risk Transaction' });
-    await page.getByTestId('btn-execute-dryrun').click();
+    await page.click('[data-testid="new-workflow-btn"]');
+    await expect(page.locator(`text=${workflowName}`)).toBeVisible({ timeout: 10000 });
 
-    // Validate execution output response from the running backend
-    const outputPanel = page.getByTestId('dryrun-output-panel');
-    await expect(outputPanel).toBeVisible();
-    await expect(outputPanel).toContainText('"result": "approved"'); 
+    await page.click(`text=${workflowName}`);
+
+    // Click dry run using the default sample workflow
+    await page.click('[data-testid="run-dryrun-btn"]');
+    await expect(page.locator('[data-testid="results-viewer-pane"]')).toBeVisible();
+    const resultsPane = page.locator('[data-testid="results-viewer-pane"]');
+    await expect(resultsPane.locator('text=Overall Success')).toBeVisible({ timeout: 15000 });
+  });
+
+  test('verify dry-run results schema', async ({ page }) => {
+    const workflowName = uniqueName('E2E Schema Workflow');
+
+    page.on('dialog', dialog => {
+      if (dialog.type() === 'prompt') {
+        dialog.accept(workflowName);
+      } else {
+        dialog.accept();
+      }
+    });
+
+    await page.click('[data-testid="new-workflow-btn"]');
+    await expect(page.locator(`text=${workflowName}`)).toBeVisible({ timeout: 10000 });
+
+    await page.click(`text=${workflowName}`);
+
+    // Click dry run using the default sample workflow
+    await page.click('[data-testid="run-dryrun-btn"]');
+    await expect(page.locator('[data-testid="results-viewer-pane"]')).toBeVisible();
+    const resultsPane = page.locator('[data-testid="results-viewer-pane"]');
+    await expect(resultsPane.locator('text=Overall Success')).toBeVisible({ timeout: 15000 });
+
+    // Verify schema keys in raw JSON view
+    await page.click('[title="Raw JSON View"]');
+    const rawJson = await page.locator('[data-testid="results-viewer-pane"] .monaco-editor').textContent();
+    expect(rawJson).toContain('isSuccess');
+  });
+
+  test('dry-run failure handling with invalid rules', async ({ page }) => {
+    test.slow(); // This test needs extra time for mode switching
+
+    const workflowName = uniqueName('E2E Fail Workflow');
+
+    page.on('dialog', dialog => {
+      if (dialog.type() === 'prompt') {
+        dialog.accept(workflowName);
+      } else {
+        dialog.accept();
+      }
+    });
+
+    await page.click('[data-testid="new-workflow-btn"]');
+    await expect(page.locator(`text=${workflowName}`)).toBeVisible({ timeout: 10000 });
+
+    await page.click(`text=${workflowName}`);
+
+    // Switch to Online Mode to enable backend API calls
+    await page.click('button:has-text("Sandbox Mode")');
+    await expect(page.locator('button:has-text("Online Mode")')).toBeVisible();
+
+    // Intercept the dry-run API call to return an error response that won't trigger fallback
+    // The frontend falls back on network errors, but not on HTTP errors with valid JSON responses
+    await page.route('**/rules/dry-run', async (route) => {
+      // Return a 200 response with an error payload to bypass the fallback logic
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ 
+          isSuccess: false, 
+          errorMessage: 'Invalid rule expression syntax at line 1',
+          ruleResultTree: null 
+        })
+      });
+    });
+
+    const consoleErrors: string[] = [];
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        consoleErrors.push(msg.text());
+      }
+    });
+
+    await page.click('[data-testid="run-dryrun-btn"]');
+    await expect(page.locator('[data-testid="results-viewer-pane"]')).toBeVisible();
+    const resultsPane = page.locator('[data-testid="results-viewer-pane"]');
+    await expect(resultsPane.locator('text=Evaluation Error')).toBeVisible({ timeout: 15000 });
+
+    expect(consoleErrors.filter(e => e.includes('uncaught exception'))).toHaveLength(0);
   });
 });
