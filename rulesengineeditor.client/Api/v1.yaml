@@ -313,6 +313,160 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/WorkflowSummaryResponse"
+    post:
+      tags:
+        - Rules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkflowRequest"
+          text/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkflowRequest"
+          application/*+json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkflowRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/WorkflowDefinitionResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowDefinitionResponse"
+            text/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowDefinitionResponse"
+        "400":
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            text/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "409":
+          description: Conflict
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            text/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+  /api/Rules/{id}:
+    get:
+      tags:
+        - Rules
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/WorkflowDefinitionResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowDefinitionResponse"
+            text/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowDefinitionResponse"
+        "404":
+          description: Not Found
+    put:
+      tags:
+        - Rules
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWorkflowRequest"
+          text/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWorkflowRequest"
+          application/*+json:
+            schema:
+              $ref: "#/components/schemas/UpdateWorkflowRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/WorkflowDefinitionResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowDefinitionResponse"
+            text/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowDefinitionResponse"
+        "400":
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            text/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "404":
+          description: Not Found
+        "409":
+          description: Conflict
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            text/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+    delete:
+      tags:
+        - Rules
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
   /api/Rules/dry-run:
     post:
       tags:
@@ -355,6 +509,34 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
   /api/Rules/scenarios:
+    get:
+      tags:
+        - Rules
+      parameters:
+        - name: workflowId
+          in: query
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScenarioResponse"
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScenarioResponse"
+            text/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScenarioResponse"
     post:
       tags:
         - Rules
@@ -395,6 +577,96 @@ paths:
             text/json:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
+  /api/Rules/scenarios/{id}:
+    get:
+      tags:
+        - Rules
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ScenarioResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScenarioResponse"
+            text/json:
+              schema:
+                $ref: "#/components/schemas/ScenarioResponse"
+        "404":
+          description: Not Found
+    put:
+      tags:
+        - Rules
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateScenarioRequest"
+          text/json:
+            schema:
+              $ref: "#/components/schemas/UpdateScenarioRequest"
+          application/*+json:
+            schema:
+              $ref: "#/components/schemas/UpdateScenarioRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ScenarioResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScenarioResponse"
+            text/json:
+              schema:
+                $ref: "#/components/schemas/ScenarioResponse"
+        "400":
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            text/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "404":
+          description: Not Found
+    delete:
+      tags:
+        - Rules
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
 components:
   schemas:
     AccessTokenResponse:
@@ -781,6 +1053,132 @@ components:
         mockInputJson:
           type: string
         expectedOutputJson:
+          type:
+            - "null"
+            - string
+    ScenarioResponse:
+      required:
+        - scenarioId
+        - workflowDefinitionId
+        - scenarioName
+        - mockInputJson
+      type: object
+      properties:
+        scenarioId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+            - integer
+            - string
+          format: int32
+        workflowDefinitionId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+            - integer
+            - string
+          format: int32
+        scenarioName:
+          type: string
+        mockInputJson:
+          type: string
+        expectedOutputJson:
+          type:
+            - "null"
+            - string
+        createdAt:
+          type:
+            - "null"
+            - string
+          format: date-time
+    UpdateScenarioRequest:
+      type: object
+      properties:
+        scenarioName:
+          type:
+            - "null"
+            - string
+        mockInputJson:
+          type:
+            - "null"
+            - string
+        expectedOutputJson:
+          type:
+            - "null"
+            - string
+    WorkflowDefinitionResponse:
+      required:
+        - workflowDefinitionId
+        - workflowName
+        - version
+        - jsonContent
+        - status
+      type: object
+      properties:
+        workflowDefinitionId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+            - integer
+            - string
+          format: int32
+        workflowName:
+          type: string
+        version:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+            - integer
+            - string
+          format: int32
+        jsonContent:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type:
+            - "null"
+            - string
+          format: date-time
+        createdBy:
+          type:
+            - "null"
+            - string
+    CreateWorkflowRequest:
+      required:
+        - workflowName
+        - version
+        - jsonContent
+        - status
+      type: object
+      properties:
+        workflowName:
+          type: string
+        version:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+            - integer
+            - string
+          format: int32
+        jsonContent:
+          type: string
+        status:
+          type: string
+    UpdateWorkflowRequest:
+      type: object
+      properties:
+        workflowName:
+          type:
+            - "null"
+            - string
+        version:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+            - "null"
+            - integer
+            - string
+          format: int32
+        jsonContent:
+          type:
+            - "null"
+            - string
+        status:
           type:
             - "null"
             - string

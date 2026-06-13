@@ -1,14 +1,16 @@
 import { useReducer } from 'react';
 
+const emptyRules = '[]';
+const emptyFacts = '{}';
+const defaultSettings = '{\n  "ValidationMode": "Default",\n  "EnableScopedParams": true,\n  "NestedRuleExecutionMode": "All",\n  "CustomTypes": []\n}';
+
 const initialState = {
-  currentRules: '[\n  {\n    "WorkflowName": "SampleWorkflow",\n    "Rules": [\n      {\n        "RuleName": "GiveDiscount",\n        "SuccessEvent": "10",\n        "ErrorMessage": "One or more conditions failed.",\n        "ErrorType": "Error",\n        "RuleExpressionType": "LambdaExpression",\n        "Expression": "input1.country == \\"us\\" AND input1.loyaltyFactor > 2"\n      }\n    ]\n  }\n]',
-  currentFacts: '{\n  "input1": {\n    "country": "us",\n    "loyaltyFactor": 3,\n    "totalPurchases": 5000\n  }\n}',
-  assertions: [
-    { id: '1', path: '[0].IsSuccess', expectedValue: 'true', active: true, source: 'manual' }
-  ],
+  currentRules: emptyRules,
+  currentFacts: emptyFacts,
+  assertions: [],
   testResult: null,
   isMockMode: false,
-  currentSettings: '{\n  "ValidationMode": "Default",\n  "EnableScopedParams": true,\n  "NestedRuleExecutionMode": "All",\n  "CustomTypes": []\n}',
+  currentSettings: defaultSettings,
   activeScenario: null,
   currentWorkflowId: null,
   currentScenarioId: null,
@@ -60,7 +62,36 @@ function rulesReducer(state, action) {
     case 'CLEAR_WORKFLOW':
       return { ...state, currentWorkflowId: null };
     case 'CLEAR_SCENARIO':
-      return { ...state, currentScenarioId: null, activeScenario: null };
+      return {
+        ...state,
+        currentScenarioId: null,
+        activeScenario: null,
+        currentFacts: emptyFacts,
+        assertions: []
+      };
+    case 'LOAD_DEFAULT_TEMPLATE': {
+      const name = action.payload || 'NewWorkflow';
+      const template = JSON.stringify([{
+        WorkflowName: name,
+        Rules: [{
+          RuleName: 'DefaultRule',
+          SuccessEvent: '10',
+          ErrorMessage: 'One or more conditions failed.',
+          ErrorType: 'Error',
+          RuleExpressionType: 'LambdaExpression',
+          Expression: 'input1 == true'
+        }]
+      }], null, 2);
+      return {
+        ...state,
+        currentRules: template,
+        currentWorkflowId: null,
+        currentScenarioId: null,
+        activeScenario: null,
+        currentFacts: emptyFacts,
+        assertions: []
+      };
+    }
     case 'SET_ONLINE_MODE':
       return { ...state, onlineMode: action.payload };
     case 'CLEAR_ASSERTIONS':

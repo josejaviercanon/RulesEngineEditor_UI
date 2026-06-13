@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Folder, FileJson, Save, Plus, Play, Trash2, Globe, FlaskConical } from 'lucide-react';
 import { rulesApi } from '../services/apiClient';
+import WorkflowModal from './WorkflowModal';
 
 // Utility: generate path assertions from expected output JSON
 function generateAssertionsFromExpectedOutput(expectedOutputJson, basePath = '') {
@@ -46,28 +47,16 @@ function generateAssertionsFromExpectedOutput(expectedOutputJson, basePath = '')
 }
 
 export default function Sidebar({ state, dispatch, onDryRun }) {
-  const [workflows, setWorkflows] = useState([]);
   const [scenarios, setScenarios] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  const loadWorkflows = useCallback(async () => {
-    const wfRes = await rulesApi.getWorkflows();
-    setWorkflows(wfRes.data || []);
-  }, []);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const loadScenarios = useCallback(async (workflowId) => {
     const scRes = await rulesApi.getScenarios(workflowId);
     setScenarios(scRes.data || []);
   }, []);
 
-  // Initial data load on mount — only workflows, scenarios load when workflow selected
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadWorkflows();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Reload scenarios when workflow changes
+  // Reload scenarios when workflow changes — only fires when currentWorkflowId is set
   useEffect(() => {
     if (state.currentWorkflowId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -82,35 +71,125 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
     dispatch({ type: 'SET_ONLINE_MODE', payload: !state.onlineMode });
   };
 
-  const handleLoadWorkflow = async (workflow) => {
-    setLoading(true);
-    try {
-      const res = await rulesApi.getWorkflow(workflow.WorkflowDefinitionId);
-      if (res.data) {
-        dispatch({
-          type: 'SET_WORKFLOW',
-          payload: {
-            id: workflow.WorkflowDefinitionId,
-            rulesJson: res.data.JsonContent || res.data.jsonContent || state.currentRules
-          }
-        });
+  // Modal handlers
+  const handleOpenModal = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleSelectWorkflow = (workflowData) => {
+    dispatch({ type: 'CLEAR_SCENARIO' });
+    dispatch({
+      type: 'SET_WORKFLOW',
+      payload: {
+        id: workflowData.id,
+        rulesJson: workflowData.rulesJson
       }
-    } catch (err) {
-      console.error('Failed to load workflow:', err);
-    } finally {
-      setLoading(false);
+    });
+    setIsModalOpen(false);
+  };
+
+  const handleCreateWorkflow = (name) => {
+    dispatch({ type: 'LOAD_DEFAULT_TEMPLATE', payload: name });
+    setIsModalOpen(false);
+  };
+
+  const handleDeleteWorkflowFromModal = (workflowId) => {
+    if (state.currentWorkflowId === workflowId || state.currentWorkflowId === Number(workflowId)) {
+      dispatch({ type: 'CLEAR_WORKFLOW' });
+      dispatch({ type: 'CLEAR_SCENARIO' });
     }
   };
 
-  const handleSaveNewWorkflow = async () => {
-    try {
-      const parsed = JSON.parse(state.currentRules);
-      const toSave = Array.isArray(parsed) ? parsed[0] : parsed;
-      const name = window.prompt('Enter workflow name:', toSave.WorkflowName || 'New Workflow');
-      if (!name) return;
+  /**
+   * Validates and parses the current rules JSON.
+   * Returns { valid, parsed, firstWorkflow, error } object.
+   */
+  const validateRulesJson = () => {
+    const raw = state.currentRules;
+    if (!raw || raw.trim() === '' || raw.trim() === '[]' || raw.trim() === '{}') {
+      return { valid: false, parsed: null, firstWorkflow: null, error: 'Rules JSON is empty. Add workflow content first.' };
+    }
 
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      return { valid: false, parsed: null, firstWorkflow: null, error: `Invalid JSON: ${e.message}` };
+    }
+
+    if (!parsed) {
+      return { valid: false, parsed, firstWorkflow: null, error: 'Rules JSON is null or undefined.' };
+    }
+
+    const firstWorkflow = Array.isArray(parsed) ? parsed[0] : parsed;
+    if (!firstWorkflow || typeof firstWorkflow !== 'object') {
+      return { valid: false, parsed, firstWorkflow: null, error: 'Rules JSON must contain at least one workflow object.' };
+    }
+
+    return { valid: true, parsed, firstWorkflow, error: null };
+  };
+
+  const handleUpdateWorkflow = async () => {
+    if (!state.currentWorkflowId) {
+      alert('No workflow loaded. Use the New button to create one first.');
+      return;
+    }
+
+    const validation = validateRulesJson();
+    if (!validation.valid) {
+      alert(validation.error);
+      return;
+    }
+
+    const { firstWorkflow } = validation;
+    const name = window.prompt('Update workflow name:', firstWorkflow.WorkflowName || 'Workflow');
+    if (!name) return;
+
+    try {
+      const res = await rulesApi.updateWorkflow(state.currentWorkflowId, {
+        WorkflowName: name,
+        Version: firstWorkflow.Version || 1,
+        JsonContent: state.currentRules,
+        Status: 'Draft'
+      });
+
+      if (res.data) {
+        // Success — no need to reload, current state is already up to date
+      } else {
+        alert('Update returned no data. Workflow may not have been saved.');
+      }
+    } catch (err) {
+      console.error('Update workflow error:', err);
+      alert(`Failed to update workflow: ${err.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleSaveWorkflow = async () => {
+    if (state.currentWorkflowId) {
+      // Update existing
+      await handleUpdateWorkflow();
+      return;
+    }
+
+    // Save as new
+    const validation = validateRulesJson();
+    if (!validation.valid) {
+      alert(validation.error);
+      return;
+    }
+
+    const { firstWorkflow } = validation;
+    const name = window.prompt('Enter workflow name:', firstWorkflow.WorkflowName || 'New Workflow');
+    if (!name) return;
+
+    try {
       const res = await rulesApi.saveWorkflow({
         WorkflowName: name,
+        Version: firstWorkflow.Version || 1,
         JsonContent: state.currentRules,
         Status: 'Draft'
       });
@@ -123,45 +202,12 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
             rulesJson: state.currentRules
           }
         });
-        await loadWorkflows();
+      } else {
+        alert('Save returned no data. Workflow may not have been saved.');
       }
-    } catch {
-      alert('Invalid JSON rules or save failed. Cannot save.');
-    }
-  };
-
-  const handleUpdateWorkflow = async () => {
-    if (!state.currentWorkflowId) {
-      alert('No workflow loaded. Save as new instead.');
-      return;
-    }
-    try {
-      const parsed = JSON.parse(state.currentRules);
-      const toSave = Array.isArray(parsed) ? parsed[0] : parsed;
-      const name = window.prompt('Update workflow name:', toSave.WorkflowName || 'Workflow');
-      if (!name) return;
-
-      await rulesApi.updateWorkflow(state.currentWorkflowId, {
-        WorkflowName: name,
-        JsonContent: state.currentRules,
-        Status: 'Draft'
-      });
-      await loadWorkflows();
-    } catch {
-      alert('Invalid JSON rules or update failed.');
-    }
-  };
-
-  const handleDeleteWorkflow = async (workflow) => {
-    if (!window.confirm(`Delete workflow "${workflow.WorkflowName}"?`)) return;
-    try {
-      await rulesApi.deleteWorkflow(workflow.WorkflowDefinitionId);
-      if (state.currentWorkflowId === workflow.WorkflowDefinitionId) {
-        dispatch({ type: 'CLEAR_WORKFLOW' });
-      }
-      await loadWorkflows();
-    } catch {
-      alert('Failed to delete workflow.');
+    } catch (err) {
+      console.error('Save workflow error:', err);
+      alert(`Failed to save workflow: ${err.message || 'Unknown error'}`);
     }
   };
 
@@ -183,7 +229,6 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
         // Auto-populate assertions from expected output
         const expectedOutput = sc.ExpectedOutputJson || sc.expectedOutputJson;
         if (expectedOutput) {
-          // Replace assertions: keep manual, add new auto-generated ones
           const manualAssertions = state.assertions.filter(a => a.source === 'manual');
           const autoAssertions = generateAssertionsFromExpectedOutput(expectedOutput);
           dispatch({ type: 'REPLACE_ASSERTIONS', payload: [...manualAssertions, ...autoAssertions] });
@@ -301,44 +346,25 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Workflows</h3>
             <div className="flex items-center gap-1">
-              <button onClick={handleSaveNewWorkflow} data-testid="new-workflow-btn" className="text-lime-400 hover:text-lime-300 p-1" title="Save as New Workflow">
+              <button onClick={handleOpenModal} data-testid="new-workflow-btn" className="text-lime-400 hover:text-lime-300 p-1" title="Load or Create Workflow">
                 <Plus size={14} />
               </button>
-              <button onClick={handleUpdateWorkflow} data-testid="save-workflow-btn" className="text-slate-400 hover:text-slate-200 p-1" title="Update Current Workflow">
+              <button onClick={handleSaveWorkflow} data-testid="save-workflow-btn" className="text-slate-400 hover:text-slate-200 p-1" title={state.currentWorkflowId ? 'Update Current Workflow' : 'Save as New Workflow'}>
                 <Save size={14} />
               </button>
             </div>
           </div>
-          <ul className="space-y-1">
-            {workflows.map(wf => {
-              const isActive = state.currentWorkflowId === wf.WorkflowDefinitionId || state.currentWorkflowId === Number(wf.WorkflowDefinitionId);
-              return (
-                <li 
-                  key={wf.WorkflowDefinitionId || wf.WorkflowName} 
-                  data-testid={`workflow-item-${wf.WorkflowDefinitionId}`}
-                  className={`flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer transition-colors group ${
-                    isActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'hover:bg-slate-800'
-                  }`}
-                >
-                  <div className="flex-1 flex items-center gap-2 min-w-0" onClick={() => handleLoadWorkflow(wf)}>
-                    <FileJson size={14} className={isActive ? 'text-lime-400' : 'text-slate-500'} />
-                    <span className="truncate">{wf.WorkflowName}</span>
-                  </div>
-                  <button 
-                    onClick={() => handleDeleteWorkflow(wf)}
-                    data-testid="delete-workflow-btn"
-                    className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 p-0.5 transition-opacity"
-                    title="Delete Workflow"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </li>
-              );
-            })}
-            {workflows.length === 0 && (
-              <li className="text-xs text-slate-600 px-2">No workflows saved.</li>
-            )}
-          </ul>
+          {!state.currentWorkflowId && (
+            <p data-testid="workflow-list-empty" className="text-xs text-slate-600 px-2 py-3 italic">
+              Click New to load or create a workflow
+            </p>
+          )}
+          {state.currentWorkflowId && (
+            <div className="flex items-center gap-2 px-2 py-1.5 text-sm rounded bg-lime-500/10 text-lime-400 border border-lime-500/20">
+              <FileJson size={14} className="text-lime-400" />
+              <span className="truncate">Workflow #{state.currentWorkflowId}</span>
+            </div>
+          )}
         </div>
 
         {/* Scenarios Section */}
@@ -351,7 +377,7 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
               <button onClick={handleNewScenario} data-testid="new-scenario-btn" className="text-lime-400 hover:text-lime-300 p-1" title="New Scenario">
                 <Plus size={14} />
               </button>
-              <button onClick={handleUpdateScenario} data-testid="save-scenario-btn" className="text-slate-400 hover:text-slate-200 p-1" title="Update Current Scenario">
+              <button onClick={handleUpdateScenario} data-testid="update-scenario-btn" className="text-slate-400 hover:text-slate-200 p-1" title="Update Current Scenario">
                 <Save size={14} />
               </button>
             </div>
@@ -405,8 +431,16 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
           Dry Run
         </button>
       </div>
+
+      {/* Workflow Modal */}
+      {isModalOpen && (
+        <WorkflowModal
+          onClose={handleCloseModal}
+          onSelectWorkflow={handleSelectWorkflow}
+          onCreateWorkflow={handleCreateWorkflow}
+          onDeleteWorkflow={handleDeleteWorkflowFromModal}
+        />
+      )}
     </div>
   );
 }
-
-

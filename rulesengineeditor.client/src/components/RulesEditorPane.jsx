@@ -26,6 +26,7 @@ export default function RulesEditorPane({ value, onChange }) {
           defaultLanguage="json"
           theme="vs-dark"
           value={value}
+          beforeMount={handleEditorBeforeMount}
           onChange={(val) => onChange(val || '')}
           options={{
             minimap: { enabled: false },

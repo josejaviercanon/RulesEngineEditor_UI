@@ -4,6 +4,25 @@ function uniqueName(base: string) {
   return `${base} ${Date.now()}`;
 }
 
+/**
+ * Helper: opens the workflow modal and creates a new workflow from template.
+ */
+async function createWorkflowFromModal(page: import('@playwright/test').Page, workflowName: string) {
+  await page.click('[data-testid="new-workflow-btn"]');
+  await expect(page.locator('[data-testid="workflow-modal"]')).toBeVisible({ timeout: 5000 });
+
+  page.on('dialog', dialog => {
+    if (dialog.type() === 'prompt') {
+      dialog.accept(workflowName);
+    } else {
+      dialog.accept();
+    }
+  });
+
+  await page.click('[data-testid="workflow-modal-create-btn"]');
+  await expect(page.locator('[data-testid="workflow-modal"]')).not.toBeVisible({ timeout: 5000 });
+}
+
 test.describe('Rules Engine Dry-Run Execution', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
@@ -12,21 +31,9 @@ test.describe('Rules Engine Dry-Run Execution', () => {
 
   test('trigger dry-run and verify results', async ({ page }) => {
     const workflowName = uniqueName('E2E DryRun Workflow');
+    await createWorkflowFromModal(page, workflowName);
 
-    page.on('dialog', dialog => {
-      if (dialog.type() === 'prompt') {
-        dialog.accept(workflowName);
-      } else {
-        dialog.accept();
-      }
-    });
-
-    await page.click('[data-testid="new-workflow-btn"]');
-    await expect(page.locator(`text=${workflowName}`)).toBeVisible({ timeout: 10000 });
-
-    await page.click(`text=${workflowName}`);
-
-    // Click dry run using the default sample workflow
+    // Click dry run using the default template
     await page.click('[data-testid="run-dryrun-btn"]');
     await expect(page.locator('[data-testid="results-viewer-pane"]')).toBeVisible();
     const resultsPane = page.locator('[data-testid="results-viewer-pane"]');
@@ -35,21 +42,9 @@ test.describe('Rules Engine Dry-Run Execution', () => {
 
   test('verify dry-run results schema', async ({ page }) => {
     const workflowName = uniqueName('E2E Schema Workflow');
+    await createWorkflowFromModal(page, workflowName);
 
-    page.on('dialog', dialog => {
-      if (dialog.type() === 'prompt') {
-        dialog.accept(workflowName);
-      } else {
-        dialog.accept();
-      }
-    });
-
-    await page.click('[data-testid="new-workflow-btn"]');
-    await expect(page.locator(`text=${workflowName}`)).toBeVisible({ timeout: 10000 });
-
-    await page.click(`text=${workflowName}`);
-
-    // Click dry run using the default sample workflow
+    // Click dry run using the default template
     await page.click('[data-testid="run-dryrun-btn"]');
     await expect(page.locator('[data-testid="results-viewer-pane"]')).toBeVisible();
     const resultsPane = page.locator('[data-testid="results-viewer-pane"]');
@@ -65,28 +60,14 @@ test.describe('Rules Engine Dry-Run Execution', () => {
     test.slow(); // This test needs extra time for mode switching
 
     const workflowName = uniqueName('E2E Fail Workflow');
-
-    page.on('dialog', dialog => {
-      if (dialog.type() === 'prompt') {
-        dialog.accept(workflowName);
-      } else {
-        dialog.accept();
-      }
-    });
-
-    await page.click('[data-testid="new-workflow-btn"]');
-    await expect(page.locator(`text=${workflowName}`)).toBeVisible({ timeout: 10000 });
-
-    await page.click(`text=${workflowName}`);
+    await createWorkflowFromModal(page, workflowName);
 
     // Switch to Online Mode to enable backend API calls
     await page.click('button:has-text("Sandbox Mode")');
     await expect(page.locator('button:has-text("Online Mode")')).toBeVisible();
 
-    // Intercept the dry-run API call to return an error response that won't trigger fallback
-    // The frontend falls back on network errors, but not on HTTP errors with valid JSON responses
+    // Intercept the dry-run API call to return an error response
     await page.route('**/rules/dry-run', async (route) => {
-      // Return a 200 response with an error payload to bypass the fallback logic
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

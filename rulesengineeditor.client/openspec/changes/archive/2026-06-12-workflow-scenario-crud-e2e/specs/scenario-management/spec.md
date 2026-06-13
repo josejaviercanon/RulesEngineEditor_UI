@@ -4,7 +4,7 @@
 
 Management of test scenarios within workflows, including listing, loading, creating, updating, and deleting scenarios through the UI with backend and localStorage fallback support.
 
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: User can list scenarios for a workflow
 The system SHALL display test scenarios linked to the current workflow.
@@ -80,6 +80,8 @@ The system SHALL remove a scenario from the system.
 - **WHEN** the backend is unreachable
 - **THEN** the system removes the scenario from `localStorage`
 - **AND** updates the Sidebar list
+
+## ADDED Requirements
 
 ### Requirement: System clears scenario state when a new workflow is created
 The system SHALL remove any loaded scenario state when the user successfully creates a new workflow.

@@ -17,16 +17,51 @@ export default function AssertionTable({ assertions, testResult, dispatch }) {
     dispatch({ type: 'REMOVE_ASSERTION', payload: id });
   };
 
+  // Helper to convert a string to PascalCase and camelCase variants
+  const toPascalCase = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+  const toCamelCase = (str) => str.charAt(0).toLowerCase() + str.slice(1);
+
+  // Try to resolve a key against an object, trying original, PascalCase, and camelCase
+  const resolveKey = (obj, key) => {
+    if (obj === undefined || obj === null) return undefined;
+    // Try exact key first
+    if (key in obj) return obj[key];
+    // Try PascalCase variant
+    const pascal = toPascalCase(key);
+    if (pascal !== key && pascal in obj) return obj[pascal];
+    // Try camelCase variant
+    const camel = toCamelCase(key);
+    if (camel !== key && camel in obj) return obj[camel];
+    return undefined;
+  };
+
   // Helper to extract value by path from the result object
   const evaluatePath = (obj, path) => {
     if (!obj || !path) return undefined;
     try {
-      // Very basic path evaluation for demo (e.g., "[0].IsSuccess" or "0.IsSuccess")
-      const keys = path.replace(/\[(\w+)\]/g, '.$1').replace(/^\./, '').split('.');
-      let current = obj;
+      // If the path starts with an array index like [0], auto-unwrap ruleResultTree
+      let root = obj;
+      let effectivePath = path;
+
+      if (/^\[/.test(path)) {
+        // Path starts with array index — try to unwrap ruleResultTree/RuleResultTree
+        const tree = resolveKey(obj, 'ruleResultTree');
+        if (tree !== undefined) {
+          root = tree;
+        }
+      }
+
+      // Convert [N] notation to dot notation, then split
+      const keys = effectivePath.replace(/\[(\w+)\]/g, '.$1').replace(/^\./, '').split('.');
+      let current = root;
       for (let key of keys) {
         if (current === undefined || current === null) return undefined;
-        current = current[key];
+        // Try numeric index for arrays
+        if (Array.isArray(current) && !isNaN(key)) {
+          current = current[Number(key)];
+        } else {
+          current = resolveKey(current, key);
+        }
       }
       return current;
     } catch {
@@ -125,7 +160,7 @@ export default function AssertionTable({ assertions, testResult, dispatch }) {
                       className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-lime-500 transition-colors"
                     />
                   </td>
-                  <td className="px-3 py-2 text-slate-400 font-mono text-xs">
+                  <td className="px-3 py-2 text-slate-400 font-mono text-xs" data-testid={`assertion-actual-${a.id}`}>
                     {evaluated ? (actual !== undefined ? String(actual) : <span className="text-slate-600">undefined</span>) : '-'}
                   </td>
                   <td className="px-3 py-2 text-center">

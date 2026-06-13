@@ -48,6 +48,32 @@
   - Ensure `theme="vs-dark"` is set on all Editor instances
   - Tailwind v4 colors are defined in `index.css` `@theme` block, not `tailwind.config.js`
 
+### 7. Workflow Modal Issues
+- **Symptom**: Modal doesn't open, shows empty list, or fails to load workflows.
+- **Fix**: 
+  - Verify the "New" button (`[data-testid="new-workflow-btn"]`) triggers `setIsModalOpen(true)` in Sidebar
+  - Check that `WorkflowModal.jsx` fetches workflows via `rulesApi.getWorkflows()` on mount
+  - If the modal shows "Failed to load workflows", check backend connectivity (see Issue #2)
+  - If the modal shows "No workflows found", this is expected for a fresh install — use "Create New Workflow"
+  - Verify `data-testid` attributes are present: `workflow-modal`, `workflow-modal-list`, `workflow-modal-create-btn`, `workflow-modal-cancel-btn`
+
+### 8. Empty Editors on Startup
+- **Symptom**: App starts with empty editors and no workflow list visible.
+- **Fix**: 
+  - This is the **expected behavior** — the app no longer auto-loads workflows or sample data
+  - Click the "New" button (Plus icon) in the Sidebar to open the workflow selection modal
+  - Select an existing workflow or click "Create New Workflow" to load a default template
+  - The hint text "Click New to load or create a workflow" confirms the empty state is intentional
+
+### 9. Assertion Actual Values Not Updating After Dry-Run
+- **Symptom**: After running a dry-run, the "Actual Value" column in the assertion table shows "-" or "undefined".
+- **Fix**: 
+  - Verify `testResult` is not null in React DevTools (should be populated after dry-run)
+  - Check that assertion paths are valid — e.g., `[0].IsSuccess` resolves against `testResult.ruleResultTree[0].isSuccess`
+  - The `evaluatePath()` function auto-unwraps `ruleResultTree`/`RuleResultTree` when paths start with `[N]`
+  - It also tries both PascalCase and camelCase property names — verify the path key exists in the result
+  - If using Online Mode, ensure the backend returns a valid `EvaluationResult` with `ruleResultTree`
+
 ---
 
 ## Debugging Steps
@@ -96,7 +122,10 @@ The project uses Playwright for end-to-end UI testing against the local dev serv
 
 ### Selectors
 - Tests use `data-testid` attributes for stable element locating
-- Key selectors: `rules-editor-pane`, `facts-editor-pane`, `results-viewer-pane`, `run-dryrun-btn`, `new-workflow-btn`, `save-workflow-btn`, `delete-workflow-btn`, `new-scenario-btn`, `save-scenario-btn`, `delete-scenario-btn`
+- Key selectors: `rules-editor-pane`, `facts-editor-pane`, `results-viewer-pane`, `run-dryrun-btn`, `new-workflow-btn`, `save-workflow-btn`, `delete-workflow-btn`, `new-scenario-btn`, `update-scenario-btn`, `delete-scenario-btn`
+- Modal selectors: `workflow-modal`, `workflow-modal-list`, `workflow-modal-item-{id}`, `workflow-modal-create-btn`, `workflow-modal-cancel-btn`
+- Assertion selectors: `assertion-table`, `add-assertion-btn`, `assertion-actual-{id}`
+- Empty state: `workflow-list-empty`
 
 ---
 

@@ -108,7 +108,7 @@ export const authClient = {
 
   // Refresh token
   refreshToken: async () => {
-    return await performRefreshToken();
+    return await refreshToken();
   },
 
   // Server-side logout

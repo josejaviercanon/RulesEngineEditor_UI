@@ -22,7 +22,8 @@ rulesengineeditor.client/
 │   └── v1.yaml              # OpenAPI spec for backend contract
 ├── src/
 │   ├── components/
-│   │   ├── Sidebar.jsx           # Workflow/scenario list + save + dry-run trigger
+│   │   ├── Sidebar.jsx           # Workflow/scenario management + dry-run trigger
+│   │   ├── WorkflowModal.jsx     # Modal for selecting/creating workflows
 │   │   ├── RulesEditorPane.jsx   # Monaco Editor for Rules JSON
 │   │   ├── FactsEditorPane.jsx   # Monaco Editor for Facts + Settings JSON
 │   │   ├── ResultsViewerPane.jsx # Tree view or raw JSON of execution results
@@ -35,6 +36,10 @@ rulesengineeditor.client/
 │   ├── index.css                 # Tailwind v4 theme (no tailwind.config.js)
 │   ├── main.jsx                  # Entry point
 │   └── App.jsx                   # Root layout (three-pane + sidebar)
+├── tests/
+│   ├── auth.setup.ts             # Playwright auth setup
+│   ├── rules-engine-crud.spec.ts # Workflow & Scenario CRUD E2E tests
+│   └── rules-engine-dryrun.spec.ts # Dry-run execution E2E tests
 └── docs/
     ├── UI.Architecture.md
     ├── UI.AgentRoles.md
@@ -46,10 +51,21 @@ rulesengineeditor.client/
 ## Core Components
 
 ### Sidebar (`src/components/Sidebar.jsx`)
-- Left panel displaying saved workflows and test scenarios
-- Save current rules as a workflow
+- Left panel for workflow and scenario management
+- **Startup behavior**: Editors start empty — no workflows are auto-loaded
+- "New" button opens the `WorkflowModal` for selecting or creating a workflow
+- Save/Update button persists current editor content as a workflow
+- Scenario list appears only after a workflow is loaded
 - Trigger dry-run evaluation
-- Loads data from backend (with localStorage fallback)
+- Loads scenario data from backend (with localStorage fallback)
+
+### WorkflowModal (`src/components/WorkflowModal.jsx`)
+- Modal dialog triggered by the "New" button in the Sidebar
+- Fetches and displays available workflows on demand from `GET /api/Rules`
+- Each workflow item shows name, version, and status
+- "Create New Workflow" button loads a default simple Rules JSON template
+- Supports backdrop click and Escape key to dismiss
+- Delete workflow action available on hover per item
 
 ### RulesEditorPane (`src/components/RulesEditorPane.jsx`)
 - Monaco Editor for editing Microsoft.RulesEngine workflow JSON
@@ -82,10 +98,10 @@ rulesengineeditor.client/
 ### useRulesReducer (`src/hooks/useRulesReducer.js`)
 - Custom `useReducer` hook (not Redux/Zustand)
 - State is **string-based JSON** for all editor content:
-  - `currentRules`: Rules JSON string
-  - `currentFacts`: Facts JSON string
-  - `currentSettings`: Settings JSON string
-- Actions: SET_RULES, SET_FACTS, SET_SETTINGS, SET_TEST_RESULT, ADD/REMOVE/UPDATE_ASSERTION, SET_ACTIVE_SCENARIO
+  - `currentRules`: Rules JSON string (starts empty `'[]'`)
+  - `currentFacts`: Facts JSON string (starts empty `'{}'`)
+  - `currentSettings`: Settings JSON string (default settings)
+- Actions: SET_RULES, SET_FACTS, SET_SETTINGS, SET_TEST_RESULT, ADD/REMOVE/UPDATE_ASSERTION, REPLACE_ASSERTIONS, CLEAR_ASSERTIONS, SET_ACTIVE_SCENARIO, SET_WORKFLOW, SET_SCENARIO, CLEAR_WORKFLOW, CLEAR_SCENARIO, LOAD_DEFAULT_TEMPLATE, SET_ONLINE_MODE
 
 ---
 
@@ -130,8 +146,13 @@ rulesengineeditor.client/
 
 ## Testing Strategy
 
-- **No test framework currently exists**
-- `npm run lint` (ESLint) is the only automated verification step
+- **Playwright E2E tests** validate workflow/scenario CRUD and dry-run execution
+- Test files in `tests/` directory:
+  - `auth.setup.ts` — Global authentication setup
+  - `rules-engine-crud.spec.ts` — Workflow & Scenario CRUD tests (modal-based flow)
+  - `rules-engine-dryrun.spec.ts` — Dry-run execution & results validation
+- Run tests: `npx playwright test`
+- `npm run lint` (ESLint) is the only static verification step
 - Manual testing via dry-run with assertion table
 
 ---

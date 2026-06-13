@@ -2,38 +2,12 @@
 
 ## Purpose
 
-End-to-end testing framework for the RulesEngineEditor UI using Playwright, covering workflow/scenario CRUD operations and dry-run execution validation against the live backend.
+End-to-end testing framework for the RulesEngineEditor UI using Playwright, covering workflow/scenario CRUD operations, workflow-scenario lifecycle, and dry-run execution validation against the live backend.
 
-## Requirements
-
-### Requirement: Playwright E2E test framework is installed and configured
-The system SHALL include a Playwright test framework configured to run against the local Vite dev server and live backend API.
-
-#### Scenario: Framework installation
-- **WHEN** a developer runs `npm install` in `rulesengineeditor.client/`
-- **THEN** `@playwright/test` and required browser binaries are available
-
-#### Scenario: Configuration exists
-- **WHEN** inspecting `playwright.config.ts`
-- **THEN** it defines at least two projects: `setup` (global auth) and `e2e` (functional tests)
-- **AND** the `e2e` project declares `dependencies: [{ name: 'setup' }]`
-- **AND** the base URL points to `http://localhost:65426` (Vite dev server)
-
-### Requirement: Global authentication setup project prepares reusable auth state
-The system SHALL execute a global setup project that authenticates against the backend and persists the resulting JWT/session state for reuse by all functional tests.
-
-#### Scenario: Auth setup execution
-- **WHEN** the `setup` project runs
-- **THEN** it sends credentials to the backend login endpoint
-- **AND** it writes the authenticated storage state to `playwright/.auth/user.json`
-
-#### Scenario: Functional tests reuse auth
-- **WHEN** any functional test project starts
-- **THEN** it loads `storageState: 'playwright/.auth/user.json'`
-- **AND** protected routes are accessible without re-authenticating
+## MODIFIED Requirements
 
 ### Requirement: Workflow and Scenario CRUD is covered by E2E tests
-The system SHALL provide automated tests that validate full Create, Read, Update, and Delete operations for Workflows and their child Scenarios through the UI.
+The system SHALL provide automated tests that validate full Create, Read, Update, and Delete operations for Workflows and their child Scenarios through the UI, including workflow-scenario lifecycle transitions.
 
 #### Scenario: Create a new workflow
 - **WHEN** the user clicks the "New Workflow" button (selector: `[data-testid="new-workflow-btn"]`)
