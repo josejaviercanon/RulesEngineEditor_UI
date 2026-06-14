@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import Editor from '@monaco-editor/react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, AlertCircle } from 'lucide-react';
 import { rulesEngineSettingsSchema } from '../services/schema';
 
 const TABS = [
@@ -87,6 +87,12 @@ export default function FactsEditorPane({ value, onChange, currentSettings, onSe
         )}
         {activeTab === 'settings' && (
           <div className="flex flex-col h-full">
+            <div className="mx-4 mt-3 p-3 rounded bg-amber-500/10 border border-amber-500/20 flex items-start gap-2.5 text-amber-400 text-xs">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold">Notice:</span> Settings JSON is currently <span className="underline">NOT</span> saved in the backend. To persist these configurations, please update the backend models and database tables.
+              </div>
+            </div>
             <div className="flex-1 min-h-0">
               <Editor
                 key="settings-editor"

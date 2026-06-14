@@ -1,8 +1,12 @@
 import { Plus, Trash2, CheckCircle2, XCircle, AlertCircle, Bot, User } from 'lucide-react';
 
-export default function AssertionTable({ assertions, testResult, dispatch }) {
+export default function AssertionTable({ assertions, testResult, dispatch, hasActiveScenario }) {
   
   const handleAdd = () => {
+    if (!hasActiveScenario) {
+      alert("Please select or create a scenario first.");
+      return;
+    }
     dispatch({ 
       type: 'ADD_ASSERTION', 
       payload: { id: Date.now().toString(), path: '', expectedValue: '', active: true, source: 'manual' } 

@@ -199,7 +199,13 @@ export const rulesApi = {
 
   saveWorkflow: async (workflowDef) => {
     try {
-      const response = await client.post('rules', workflowDef);
+      const payload = {
+        workflowName: workflowDef.WorkflowName ?? workflowDef.workflowName,
+        version: workflowDef.Version ?? workflowDef.version,
+        jsonContent: workflowDef.JsonContent ?? workflowDef.jsonContent,
+        status: workflowDef.Status ?? workflowDef.status
+      };
+      const response = await client.post('rules', payload);
       return { isMock: false, data: normalizeWorkflow(response.data) };
     } catch (error) {
       console.error("API POST /rules failed:", error);
@@ -213,7 +219,13 @@ export const rulesApi = {
 
   updateWorkflow: async (id, workflowDef) => {
     try {
-      const response = await client.put(`rules/${id}`, workflowDef);
+      const payload = {
+        workflowName: workflowDef.WorkflowName ?? workflowDef.workflowName,
+        version: workflowDef.Version ?? workflowDef.version,
+        jsonContent: workflowDef.JsonContent ?? workflowDef.jsonContent,
+        status: workflowDef.Status ?? workflowDef.status
+      };
+      const response = await client.put(`rules/${id}`, payload);
       return { isMock: false, data: normalizeWorkflow(response.data) };
     } catch (error) {
       console.error(`API PUT /rules/${id} failed:`, error);
@@ -270,7 +282,13 @@ export const rulesApi = {
 
   saveScenario: async (scenario) => {
     try {
-      const response = await client.post('scenarios', scenario);
+      const payload = {
+        workflowDefinitionId: scenario.WorkflowDefinitionId ?? scenario.workflowDefinitionId,
+        scenarioName: scenario.ScenarioName ?? scenario.scenarioName,
+        mockInputJson: scenario.MockInputJson ?? scenario.mockInputJson,
+        expectedOutputJson: scenario.ExpectedOutputJson ?? scenario.expectedOutputJson
+      };
+      const response = await client.post('scenarios', payload);
       return { isMock: false, data: normalizeScenario(response.data) };
     } catch (error) {
       console.error("API POST /scenarios failed:", error);
@@ -284,7 +302,12 @@ export const rulesApi = {
 
   updateScenario: async (id, scenario) => {
     try {
-      const response = await client.put(`scenarios/${id}`, scenario);
+      const payload = {
+        scenarioName: scenario.ScenarioName ?? scenario.scenarioName,
+        mockInputJson: scenario.MockInputJson ?? scenario.mockInputJson,
+        expectedOutputJson: scenario.ExpectedOutputJson ?? scenario.expectedOutputJson
+      };
+      const response = await client.put(`scenarios/${id}`, payload);
       return { isMock: false, data: normalizeScenario(response.data) };
     } catch (error) {
       console.error(`API PUT /scenarios/${id} failed:`, error);

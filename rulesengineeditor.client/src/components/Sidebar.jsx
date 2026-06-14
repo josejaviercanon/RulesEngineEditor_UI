@@ -50,6 +50,8 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
   const [scenarios, setScenarios] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreatingScenario, setIsCreatingScenario] = useState(false);
+  const [newScenarioName, setNewScenarioName] = useState('');
 
   const loadScenarios = useCallback(async (workflowId) => {
     const scRes = await rulesApi.getScenarios(workflowId);
@@ -92,8 +94,15 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
     setIsModalOpen(false);
   };
 
-  const handleCreateWorkflow = (name) => {
-    dispatch({ type: 'LOAD_DEFAULT_TEMPLATE', payload: name });
+  const handleCreateWorkflow = (workflowData) => {
+    dispatch({
+      type: 'CREATE_WORKFLOW_SUCCESS',
+      payload: {
+        id: workflowData.id,
+        rulesJson: workflowData.rulesJson
+      }
+    });
+    alert(`Workflow "${workflowData.name}" created and saved successfully.`);
     setIsModalOpen(false);
   };
 
@@ -146,8 +155,7 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
     }
 
     const { firstWorkflow } = validation;
-    const name = window.prompt('Update workflow name:', firstWorkflow.WorkflowName || 'Workflow');
-    if (!name) return;
+    const name = firstWorkflow.WorkflowName || 'Workflow';
 
     try {
       const res = await rulesApi.updateWorkflow(state.currentWorkflowId, {
@@ -158,7 +166,7 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
       });
 
       if (res.data) {
-        // Success — no need to reload, current state is already up to date
+        alert('Workflow saved successfully!');
       } else {
         alert('Update returned no data. Workflow may not have been saved.');
       }
@@ -226,12 +234,25 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
           }
         });
 
-        // Auto-populate assertions from expected output
+        // Load scenario assertions from expected output JSON
         const expectedOutput = sc.ExpectedOutputJson || sc.expectedOutputJson;
         if (expectedOutput) {
-          const manualAssertions = state.assertions.filter(a => a.source === 'manual');
-          const autoAssertions = generateAssertionsFromExpectedOutput(expectedOutput);
-          dispatch({ type: 'REPLACE_ASSERTIONS', payload: [...manualAssertions, ...autoAssertions] });
+          try {
+            const parsed = JSON.parse(expectedOutput);
+            if (Array.isArray(parsed) && parsed.length > 0 && 'path' in parsed[0]) {
+              // It's a serialized assertions list! Load it.
+              dispatch({ type: 'REPLACE_ASSERTIONS', payload: parsed });
+            } else {
+              // Standard mock JSON output, generate auto assertions
+              const autoAssertions = generateAssertionsFromExpectedOutput(expectedOutput);
+              dispatch({ type: 'REPLACE_ASSERTIONS', payload: autoAssertions });
+            }
+          } catch {
+            // Not a JSON string or not array, just empty it
+            dispatch({ type: 'REPLACE_ASSERTIONS', payload: [] });
+          }
+        } else {
+          dispatch({ type: 'REPLACE_ASSERTIONS', payload: [] });
         }
       }
     } catch (err) {
@@ -241,22 +262,28 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
     }
   };
 
-  const handleNewScenario = async () => {
+  const handleNewScenario = () => {
     if (!state.currentWorkflowId) {
-      alert('Please load or create a workflow first before adding a scenario.');
+      alert('No workflow loaded or saved. Please load an existing workflow or save your current one before creating scenarios.');
       return;
     }
-    const name = window.prompt('Enter scenario name:', 'New Scenario');
+    setIsCreatingScenario(true);
+    setNewScenarioName('');
+    dispatch({ type: 'CLEAR_ASSERTIONS' });
+  };
+
+  const handleConfirmCreateScenario = async () => {
+    const name = newScenarioName.trim();
     if (!name) return;
 
-    const expectedOutput = window.prompt('Enter expected output JSON (optional):', '');
-
     try {
+      const serializedAssertions = JSON.stringify(state.assertions);
+
       const res = await rulesApi.saveScenario({
         WorkflowDefinitionId: state.currentWorkflowId,
         ScenarioName: name,
         MockInputJson: state.currentFacts,
-        ExpectedOutputJson: expectedOutput || null
+        ExpectedOutputJson: serializedAssertions
       });
 
       if (res.data) {
@@ -269,9 +296,13 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
           }
         });
         await loadScenarios(state.currentWorkflowId);
+        setIsCreatingScenario(false);
+        setNewScenarioName('');
       }
-    } catch {
-      alert('Failed to save scenario.');
+    } catch (err) {
+      console.error('Failed to save scenario:', err);
+      const details = err.response?.data ? JSON.stringify(err.response.data, null, 2) : err.message;
+      alert(`Failed to save scenario: ${details}`);
     }
   };
 
@@ -280,18 +311,38 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
       alert('No scenario loaded. Create new instead.');
       return;
     }
-    const name = window.prompt('Update scenario name:', state.activeScenario?.ScenarioName || 'Scenario');
-    if (!name) return;
+    const name = state.activeScenario?.ScenarioName || 'Scenario';
 
     try {
+      const serializedAssertions = JSON.stringify(state.assertions);
+
       await rulesApi.updateScenario(state.currentScenarioId, {
         WorkflowDefinitionId: state.currentWorkflowId,
         ScenarioName: name,
         MockInputJson: state.currentFacts,
-        ExpectedOutputJson: state.activeScenario?.ExpectedOutputJson || null
+        ExpectedOutputJson: serializedAssertions
       });
+
+      const updatedScenario = {
+        ...state.activeScenario,
+        ScenarioName: name,
+        MockInputJson: state.currentFacts,
+        ExpectedOutputJson: serializedAssertions
+      };
+
+      dispatch({
+        type: 'SET_SCENARIO',
+        payload: {
+          id: state.currentScenarioId,
+          factsJson: state.currentFacts,
+          scenario: updatedScenario
+        }
+      });
+
       await loadScenarios(state.currentWorkflowId);
-    } catch {
+      alert('Scenario saved successfully!');
+    } catch (err) {
+      console.error('Failed to update scenario:', err);
       alert('Failed to update scenario.');
     }
   };
@@ -382,6 +433,47 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
               </button>
             </div>
           </div>
+          {isCreatingScenario && (
+            <div className="mb-2 p-2 rounded bg-slate-900 border border-slate-800 space-y-2">
+              <input
+                type="text"
+                data-testid="new-scenario-name-input"
+                placeholder="Scenario name..."
+                value={newScenarioName}
+                onChange={(e) => setNewScenarioName(e.target.value)}
+                className="w-full px-2 py-1 bg-slate-950 border border-slate-800 rounded text-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-lime-500 focus:border-transparent"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleConfirmCreateScenario();
+                  } else if (e.key === 'Escape') {
+                    setIsCreatingScenario(false);
+                    setNewScenarioName('');
+                  }
+                }}
+              />
+              <div className="flex justify-end gap-1.5">
+                <button
+                  onClick={() => {
+                    setIsCreatingScenario(false);
+                    setNewScenarioName('');
+                  }}
+                  data-testid="cancel-create-scenario-btn"
+                  className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-400 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmCreateScenario}
+                  disabled={!newScenarioName.trim()}
+                  data-testid="confirm-create-scenario-btn"
+                  className="px-2 py-0.5 rounded bg-lime-500 hover:bg-lime-400 disabled:bg-slate-800 disabled:text-slate-600 text-[10px] text-slate-950 font-bold transition-colors"
+                >
+                  Create
+                </button>
+              </div>
+            </div>
+          )}
           <ul className="space-y-1">
             {filteredScenarios.map(sc => {
               const isActive = state.currentScenarioId === sc.ScenarioId || state.currentScenarioId === Number(sc.ScenarioId);
@@ -439,6 +531,7 @@ export default function Sidebar({ state, dispatch, onDryRun }) {
           onSelectWorkflow={handleSelectWorkflow}
           onCreateWorkflow={handleCreateWorkflow}
           onDeleteWorkflow={handleDeleteWorkflowFromModal}
+          isCreatingExternal={state.isCreatingWorkflow}
         />
       )}
     </div>

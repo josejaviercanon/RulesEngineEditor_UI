@@ -162,6 +162,7 @@ function EditorLayout() {
           assertions={state.assertions} 
           testResult={state.testResult} 
           dispatch={dispatch} 
+          hasActiveScenario={!!state.currentScenarioId}
         />
 
       </div>

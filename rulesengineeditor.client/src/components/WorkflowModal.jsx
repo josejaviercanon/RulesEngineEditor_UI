@@ -5,7 +5,11 @@ import { rulesApi } from '../services/apiClient';
 export default function WorkflowModal({ onClose, onSelectWorkflow, onCreateWorkflow, onDeleteWorkflow }) {
   const [workflows, setWorkflows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState(null);
+  const [localError, setLocalError] = useState(null);
+  const [isCreatingMode, setIsCreatingMode] = useState(false);
+  const [newWorkflowName, setNewWorkflowName] = useState('');
 
   const fetchWorkflows = useCallback(async () => {
     setLoading(true);
@@ -38,6 +42,7 @@ export default function WorkflowModal({ onClose, onSelectWorkflow, onCreateWorkf
   }, [onClose]);
 
   const handleSelectWorkflow = async (workflow) => {
+    setLocalError(null);
     try {
       const res = await rulesApi.getWorkflow(workflow.WorkflowDefinitionId);
       if (res.data) {
@@ -45,17 +50,57 @@ export default function WorkflowModal({ onClose, onSelectWorkflow, onCreateWorkf
           id: workflow.WorkflowDefinitionId,
           rulesJson: res.data.JsonContent || res.data.jsonContent
         });
+      } else {
+        setLocalError('Failed to load workflow: no data returned from server.');
       }
     } catch (err) {
       console.error('Failed to load workflow:', err);
-      alert('Failed to load workflow.');
+      setLocalError(`Failed to load workflow: ${err.message || 'Unknown error'}`);
     }
   };
 
-  const handleCreateNew = () => {
-    const name = window.prompt('Enter workflow name:', 'NewWorkflow');
+  const handleCreateSubmit = async () => {
+    const name = newWorkflowName.trim();
     if (!name) return;
-    onCreateWorkflow(name);
+
+    setIsCreating(true);
+    setLocalError(null);
+
+    const defaultTemplate = JSON.stringify([{
+      WorkflowName: name,
+      Rules: [{
+        RuleName: 'DefaultRule',
+        SuccessEvent: '10',
+        ErrorMessage: 'One or more conditions failed.',
+        ErrorType: 'Error',
+        RuleExpressionType: 'LambdaExpression',
+        Expression: 'input1 == true'
+      }]
+    }], null, 2);
+
+    try {
+      const res = await rulesApi.saveWorkflow({
+        WorkflowName: name,
+        Version: 1,
+        JsonContent: defaultTemplate,
+        Status: 'Draft'
+      });
+
+      if (res.data) {
+        onCreateWorkflow({
+          id: res.data.WorkflowDefinitionId,
+          rulesJson: defaultTemplate,
+          name: name
+        });
+      } else {
+        setLocalError('Failed to create workflow: No data returned.');
+      }
+    } catch (err) {
+      console.error('Failed to create workflow:', err);
+      setLocalError(`Failed to create workflow: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleDeleteWorkflow = async (e, workflow) => {
@@ -89,7 +134,9 @@ export default function WorkflowModal({ onClose, onSelectWorkflow, onCreateWorkf
       <div className="relative bg-slate-950 border border-slate-800 rounded-lg shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-          <h2 className="text-lg font-semibold text-slate-100">Select or Create Workflow</h2>
+          <h2 className="text-lg font-semibold text-slate-100">
+            {isCreatingMode ? 'Create New Workflow' : 'Select or Create Workflow'}
+          </h2>
           <button
             onClick={onClose}
             data-testid="workflow-modal-cancel-btn"
@@ -101,7 +148,35 @@ export default function WorkflowModal({ onClose, onSelectWorkflow, onCreateWorkf
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6">
-          {loading ? (
+          {localError && (
+            <div className="mb-4 p-3 rounded bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-red-400 text-sm">
+              <AlertCircle size={16} className="shrink-0" />
+              <span>{localError}</span>
+            </div>
+          )}
+          {isCreatingMode ? (
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="workflow-name" className="block text-sm font-medium text-slate-300 mb-2">
+                  Workflow Name
+                </label>
+                <input
+                  type="text"
+                  id="workflow-name"
+                  value={newWorkflowName}
+                  onChange={(e) => setNewWorkflowName(e.target.value)}
+                  placeholder="Enter workflow name (e.g. OrderProcessing)"
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:border-transparent text-sm"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleCreateSubmit();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          ) : loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 size={24} className="text-lime-400 animate-spin" />
               <span className="ml-3 text-slate-400 text-sm">Loading workflows...</span>
@@ -155,20 +230,51 @@ export default function WorkflowModal({ onClose, onSelectWorkflow, onCreateWorkf
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800">
-          <button
-            onClick={handleCreateNew}
-            data-testid="workflow-modal-create-btn"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-lime-500 hover:bg-lime-400 text-slate-950 font-semibold text-sm transition-colors"
-          >
-            <Plus size={16} />
-            Create New Workflow
-          </button>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition-colors"
-          >
-            Cancel
-          </button>
+          {isCreatingMode ? (
+            <>
+              <button
+                onClick={handleCreateSubmit}
+                disabled={isCreating || !newWorkflowName.trim()}
+                data-testid="workflow-submit-btn"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-lime-500 hover:bg-lime-400 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-slate-950 font-semibold text-sm transition-colors"
+              >
+                {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                {isCreating ? 'Creating...' : 'Create Workflow'}
+              </button>
+              <button
+                onClick={() => {
+                  setIsCreatingMode(false);
+                  setNewWorkflowName('');
+                  setLocalError(null);
+                }}
+                disabled={isCreating}
+                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:bg-slate-900 disabled:text-slate-600 text-slate-300 text-sm transition-colors"
+              >
+                Back to List
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setIsCreatingMode(true);
+                  setNewWorkflowName('');
+                  setLocalError(null);
+                }}
+                data-testid="workflow-modal-create-btn"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-lime-500 hover:bg-lime-400 text-slate-950 font-semibold text-sm transition-colors"
+              >
+                <Plus size={16} />
+                Create New Workflow
+              </button>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition-colors"
+              >
+                Cancel
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

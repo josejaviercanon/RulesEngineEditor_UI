@@ -2,6 +2,7 @@ import { useReducer } from 'react';
 
 const emptyRules = '[]';
 const emptyFacts = '{}';
+const defaultFacts = '{\n  "input1": true\n}';
 const defaultSettings = '{\n  "ValidationMode": "Default",\n  "EnableScopedParams": true,\n  "NestedRuleExecutionMode": "All",\n  "CustomTypes": []\n}';
 
 const initialState = {
@@ -14,7 +15,9 @@ const initialState = {
   activeScenario: null,
   currentWorkflowId: null,
   currentScenarioId: null,
-  onlineMode: false
+  onlineMode: false,
+  isCreatingWorkflow: false,
+  error: null
 };
 
 function rulesReducer(state, action) {
@@ -88,12 +91,27 @@ function rulesReducer(state, action) {
         currentWorkflowId: null,
         currentScenarioId: null,
         activeScenario: null,
-        currentFacts: emptyFacts,
+        currentFacts: defaultFacts,
         assertions: []
       };
     }
     case 'SET_ONLINE_MODE':
       return { ...state, onlineMode: action.payload };
+    case 'CREATE_WORKFLOW_REQUEST':
+      return { ...state, isCreatingWorkflow: true, error: null };
+    case 'CREATE_WORKFLOW_SUCCESS':
+      return {
+        ...state,
+        isCreatingWorkflow: false,
+        currentWorkflowId: action.payload.id,
+        currentRules: action.payload.rulesJson,
+        currentScenarioId: null,
+        activeScenario: null,
+        currentFacts: defaultFacts,
+        assertions: []
+      };
+    case 'CREATE_WORKFLOW_FAILURE':
+      return { ...state, isCreatingWorkflow: false, error: action.payload };
     case 'CLEAR_ASSERTIONS':
       return { ...state, assertions: [] };
     case 'REPLACE_ASSERTIONS':

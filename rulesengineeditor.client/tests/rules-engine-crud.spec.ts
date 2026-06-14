@@ -72,15 +72,15 @@ async function openWorkflowModal(page: import('@playwright/test').Page) {
 async function createWorkflowFromModal(page: import('@playwright/test').Page, workflowName: string) {
   await openWorkflowModal(page);
   
-  page.on('dialog', dialog => {
-    if (dialog.type() === 'prompt') {
-      dialog.accept(workflowName);
-    } else {
-      dialog.accept();
-    }
-  });
-
+  // Click the "Create New Workflow" button to enter creation mode
   await page.click('[data-testid="workflow-modal-create-btn"]');
+  
+  // Fill the workflow name input
+  await page.fill('#workflow-name', workflowName);
+  
+  // Submit the form
+  await page.click('[data-testid="workflow-submit-btn"]');
+  
   // Wait for modal to close
   await expect(page.locator('[data-testid="workflow-modal"]')).not.toBeVisible({ timeout: 5000 });
 }
@@ -167,14 +167,6 @@ test.describe('Rules Engine Workflow CRUD (Modal-based)', () => {
     await createWorkflowFromModal(page, workflowName);
 
     // Now save the workflow using the Save button
-    page.on('dialog', dialog => {
-      if (dialog.type() === 'prompt') {
-        dialog.accept(workflowName);
-      } else {
-        dialog.accept();
-      }
-    });
-
     await page.click('[data-testid="save-workflow-btn"]');
     // Wait a moment for the save to complete
     await page.waitForTimeout(1000);
@@ -201,13 +193,6 @@ test.describe('Rules Engine Workflow CRUD (Modal-based)', () => {
       await page.keyboard.type(updatedJson);
 
       // Save the workflow
-      page.on('dialog', dialog => {
-        if (dialog.type() === 'prompt') {
-          dialog.accept(workflowName);
-        } else {
-          dialog.accept();
-        }
-      });
       await page.click('[data-testid="save-workflow-btn"]');
       await page.waitForTimeout(1000);
 
@@ -296,34 +281,14 @@ test.describe('Workflow Scenario Lifecycle (Modal-based)', () => {
     // Create first workflow and scenario
     await createWorkflowFromModal(page, workflowName1);
 
-    page.on('dialog', dialog => {
-      if (dialog.type() === 'prompt') {
-        const msg = dialog.message().toLowerCase();
-        if (msg.includes('scenario')) {
-          dialog.accept(scenarioName);
-        } else if (msg.includes('expected output')) {
-          dialog.accept('{}');
-        } else {
-          dialog.accept();
-        }
-      } else {
-        dialog.accept();
-      }
-    });
-
     // Save the workflow first so we have a workflowId
-    page.on('dialog', dialog => {
-      if (dialog.type() === 'prompt') {
-        dialog.accept(workflowName1);
-      } else {
-        dialog.accept();
-      }
-    });
     await page.click('[data-testid="save-workflow-btn"]');
     await page.waitForTimeout(1000);
 
     // Create a scenario
     await page.click('[data-testid="new-scenario-btn"]');
+    await page.fill('[data-testid="new-scenario-name-input"]', scenarioName);
+    await page.click('[data-testid="confirm-create-scenario-btn"]');
     await expect(page.locator(`text=${scenarioName}`)).toBeVisible({ timeout: 10000 });
 
     // Load the scenario
@@ -346,33 +311,13 @@ test.describe('Workflow Scenario Lifecycle (Modal-based)', () => {
     await createWorkflowFromModal(page, workflowName);
 
     // Save the workflow first
-    page.on('dialog', dialog => {
-      if (dialog.type() === 'prompt') {
-        dialog.accept(workflowName);
-      } else {
-        dialog.accept();
-      }
-    });
     await page.click('[data-testid="save-workflow-btn"]');
     await page.waitForTimeout(1000);
 
     // Create scenario
-    page.on('dialog', dialog => {
-      if (dialog.type() === 'prompt') {
-        const msg = dialog.message().toLowerCase();
-        if (msg.includes('scenario')) {
-          dialog.accept(scenarioName);
-        } else if (msg.includes('expected output')) {
-          dialog.accept(JSON.stringify([{ IsSuccess: true }]));
-        } else {
-          dialog.accept();
-        }
-      } else {
-        dialog.accept();
-      }
-    });
-
     await page.click('[data-testid="new-scenario-btn"]');
+    await page.fill('[data-testid="new-scenario-name-input"]', scenarioName);
+    await page.click('[data-testid="confirm-create-scenario-btn"]');
     await expect(page.locator(`text=${scenarioName}`)).toBeVisible({ timeout: 10000 });
   });
 
@@ -486,11 +431,42 @@ test.describe('Assertion Validation After Dry-Run', () => {
     await expect(page.locator('[data-testid="rules-editor-pane"]')).toBeVisible();
   });
 
-  test('assertion actual values populate after dry-run', async ({ page }) => {
-    const workflowName = uniqueName('E2E Assert WF');
+  test('add assertion triggers warning when no scenario is loaded', async ({ page }) => {
+    const workflowName = uniqueName('E2E Warn WF');
 
     // Create workflow from template
     await createWorkflowFromModal(page, workflowName);
+
+    // Listen to dialog and accept the warning
+    let dialogMsg = '';
+    page.on('dialog', dialog => {
+      dialogMsg = dialog.message();
+      dialog.accept();
+    });
+
+    // Try to add assertion without any scenario
+    await page.click('[data-testid="add-assertion-btn"]');
+    
+    // Verify warning was shown
+    expect(dialogMsg).toBe('Please select or create a scenario first.');
+  });
+
+  test('assertion actual values populate after dry-run', async ({ page }) => {
+    const workflowName = uniqueName('E2E Assert WF');
+    const scenarioName = uniqueName('E2E Assert SC');
+
+    // Create workflow from template
+    await createWorkflowFromModal(page, workflowName);
+
+    // Save the workflow first
+    await page.click('[data-testid="save-workflow-btn"]');
+    await page.waitForTimeout(1000);
+
+    // Create and load a scenario first
+    await page.click('[data-testid="new-scenario-btn"]');
+    await page.fill('[data-testid="new-scenario-name-input"]', scenarioName);
+    await page.click('[data-testid="confirm-create-scenario-btn"]');
+    await expect(page.locator(`text=${scenarioName}`)).toBeVisible({ timeout: 10000 });
 
     // Add a manual assertion
     await page.click('[data-testid="add-assertion-btn"]');
@@ -530,9 +506,20 @@ test.describe('Assertion Validation After Dry-Run', () => {
 
   test('assertion re-evaluates on subsequent dry-run', async ({ page }) => {
     const workflowName = uniqueName('E2E ReEval WF');
+    const scenarioName = uniqueName('E2E ReEval SC');
 
     // Create workflow from template
     await createWorkflowFromModal(page, workflowName);
+
+    // Save the workflow first
+    await page.click('[data-testid="save-workflow-btn"]');
+    await page.waitForTimeout(1000);
+
+    // Create and load a scenario first
+    await page.click('[data-testid="new-scenario-btn"]');
+    await page.fill('[data-testid="new-scenario-name-input"]', scenarioName);
+    await page.click('[data-testid="confirm-create-scenario-btn"]');
+    await expect(page.locator(`text=${scenarioName}`)).toBeVisible({ timeout: 10000 });
 
     // Add a manual assertion
     await page.click('[data-testid="add-assertion-btn"]');
